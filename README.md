@@ -21,6 +21,7 @@ gcc client.c -o client
 ./client 127.0.0.1 7879
 
 Пример HTTP-запроса:
+
 GET /query HTTP/1.0
 Content-Length: 0
 
