@@ -1,0 +1,5 @@
+# graphql_proxy extension
+comment = 'proxy server GraphQL-PostgresQL'
+default_version = '1.0'
+module_pathname = '$libdir/graphql_proxy'
+relocatable = false
