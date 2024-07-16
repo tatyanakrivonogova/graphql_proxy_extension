@@ -22,9 +22,9 @@ gcc client.c -o client
 
 Пример HTTP-запроса:
 
-GET /query HTTP/1.0
-Content-Length: 0
-
+GET /query HTTP/1.0\
+Content-Length: 0\
+\
 query findVideos {
   videos {
     id
