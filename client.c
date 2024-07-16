@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
             if (bytes <= 0) {
                 break;
             }
-            //printf("bytes: %d\n", bytes);
+            printf("bytes: %d\n", bytes);
             all_bytes += bytes;
             if (all_bytes % 10485760 == 0) {
                 printf(".");
