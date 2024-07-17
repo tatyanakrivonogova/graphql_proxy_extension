@@ -157,9 +157,9 @@ graphql_proxy_main(Datum main_arg) {
         ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
     }
 
-    // if (!(params.features & IORING_FEAT_FAST_POLL)) {
-    //     elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
-    // }
+    if (!(params.features & IORING_FEAT_FAST_POLL)) {
+        elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
+    }
     
     add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
 
