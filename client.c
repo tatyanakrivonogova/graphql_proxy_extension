@@ -81,6 +81,7 @@ int main(int argc, char* argv[]) {
     FILE* fout = fopen("response", "w+");
     if (fout == NULL) {
         printf("Failed while open output file\n");
+        
     } else {
         printf("Server response:\n");
         while(1) {
@@ -88,7 +89,7 @@ int main(int argc, char* argv[]) {
             if (bytes <= 0) {
                 break;
             }
-            printf("bytes: %d\n", bytes);
+            //printf("bytes: %d\n", bytes);
             all_bytes += bytes;
             if (all_bytes % 10485760 == 0) {
                 printf(".");

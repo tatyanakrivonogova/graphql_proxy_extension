@@ -67,7 +67,7 @@ PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len);
 void add_socket_read(struct io_uring *ring, int fd, size_t size);
 void add_socket_write(struct io_uring *ring, int fd, size_t size);
-void parse_input(char* request, size_t request_len, int fd);
+void parse_input(char* request, size_t request_len, int* outputSize, int fd);
 
 void
 _PG_init(void) {
@@ -157,9 +157,9 @@ graphql_proxy_main(Datum main_arg) {
         ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
     }
 
-    if (!(params.features & IORING_FEAT_FAST_POLL)) {
-        elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
-    }
+    // if (!(params.features & IORING_FEAT_FAST_POLL)) {
+    //     elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
+    // }
     
     add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
 
@@ -191,12 +191,11 @@ graphql_proxy_main(Datum main_arg) {
                     shutdown(user_data->fd, SHUT_RDWR);
                 } else {
                     //parse input
-                    parse_input(&bufs[user_data->fd], bytes_read, user_data->fd);
-                    elog(LOG, "Write after read");
-                    add_socket_write(&ring, user_data->fd, bytes_read);
+                    int outputSize;
+                    parse_input(&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd);
+                    add_socket_write(&ring, user_data->fd, outputSize);
                 }
             } else if (type == WRITE) {
-                elog(LOG, "Read after write");
                 add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
             }
             io_uring_cqe_seen(&ring, cqe);
@@ -213,7 +212,7 @@ socket_set_nonblock_fail:
 }
 
 void
-parse_input(char* request, size_t request_len, int fd) {
+parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     const char *method;
     size_t method_len;
     const char *path;
@@ -232,14 +231,14 @@ parse_input(char* request, size_t request_len, int fd) {
     size_t query_len;
     ssize_t res;
     int err;
-
+    *outputSize = 0;
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
     if (err == -1 || err == -2) {
         printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
-        strncpy(&bufs[fd], "Failed while parse HTTP request. Change and try again\n",
-                    sizeof("Failed while parse HTTP resuest. Change and try again\n"));
+        *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
+        strcpy(&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
         // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
         //             sizeof("Failed while parse HTTP resuest. Change and try again\n"));
         goto close_client_connection;
@@ -279,10 +278,11 @@ parse_input(char* request, size_t request_len, int fd) {
         query[query_len] = '\0';
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-        // strncpy(&bufs[fd], query, query_len);
+        strcpy(bufs[fd], query);
+        *outputSize = query_len;
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
-    elog(LOG, "query sent to client\n");
+    //elog(LOG, "query sent to client\n");
     elog(LOG, "buffer after query pars: %s", &bufs[fd]);
 
     // close connection after completing request
@@ -313,7 +313,7 @@ add_socket_read(struct io_uring *ring, int fd, size_t size) {
     elog(LOG, "Start socket_write");
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
-    elog(LOG, "Read buf: %s, size: %d", &bufs[fd], size);
+    elog(LOG, "Read buf from fd = %d: %s, size: %d", fd, &bufs[fd], size);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
@@ -325,9 +325,10 @@ add_socket_read(struct io_uring *ring, int fd, size_t size) {
 void
 add_socket_write(struct io_uring *ring, int fd, size_t size) {
     elog(LOG, "Start socket_write");
+    elog(LOG, "Write buf into fd = %d: %s, size: %d", fd, &bufs[fd], size);
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    elog(LOG, "Get uring sqe done");
     io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
-    elog(LOG, "Write buf: %s, size: %d", &bufs[fd], size);
 
     conn_info *conn_i = &conns[fd];
     conn_i->fd = fd;
