@@ -282,7 +282,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         *outputSize = query_len;
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
-    //elog(LOG, "query sent to client\n");
     elog(LOG, "buffer after query pars: %s", &bufs[fd]);
 
     // close connection after completing request
