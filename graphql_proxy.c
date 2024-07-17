@@ -12,7 +12,6 @@
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <assert.h>
-#include <ev.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -28,26 +27,13 @@
 #define MAX_ENTRIES          (10)
 #define MAX_MESSAGE_LEN      (512)
 
-#define error_event(events)     \
-    ((events) & EV_ERROR)
-#define read_available(events)  \
-    ((events) & EV_READ)
-
 typedef struct conn_info {
     int fd;
     unsigned type;
 } conn_info;
 
-static bool serv_logs = true;
-static ExecutorStart_hook_type prev_ExecutorStart = NULL;
 conn_info conns[MAX_CONNECTIONS];
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
-
-static inline void close_connection(EV_P_ struct ev_io *io_handle) {
-    ev_io_stop(loop, io_handle);
-    close(io_handle->fd);
-    free(io_handle);
-} 
 
 enum {
     ACCEPT,
@@ -56,7 +42,6 @@ enum {
 };
 
 PG_MODULE_MAGIC;
-static void server_ExecutorStart(QueryDesc *queryDesc, int eflags);
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
 void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len);
@@ -66,33 +51,7 @@ void parse_input(char* request, size_t request_len, int* outputSize, int fd);
 
 void
 _PG_init(void) {
-    DefineCustomBoolVariable("grapghql_proxy.enabled",
-							 "Enable logs on hook called.",
-							 NULL,
-							 &serv_logs,
-							 true,
-							 PGC_POSTMASTER,
-							 0,
-							 NULL,
-							 NULL,
-							 NULL);
-
-    prev_ExecutorStart = ExecutorStart_hook;
-    ExecutorStart_hook = server_ExecutorStart;
-    
 	graphql_proxy_start_worker();
-}
-
-static void
-server_ExecutorStart(QueryDesc *queryDesc, int eflags) {
-	if (prev_ExecutorStart)
-		prev_ExecutorStart(queryDesc, eflags);
-	else
-		standard_ExecutorStart(queryDesc, eflags);
-
-    if (serv_logs)
-		ereport(LOG, (errmsg("serv_hool: start executing query"),
-					  errdetail("query: %s", queryDesc->sourceText)));
 }
 
 static void
@@ -112,16 +71,17 @@ graphql_proxy_start_worker(void) {
 
 void
 graphql_proxy_main(Datum main_arg) {
-    struct sockaddr_in client_addr;
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
     const int val = 1;
+
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
         .sin_port = htons(DEFAULT_PORT),
         .sin_addr.s_addr = INADDR_ANY,
     };
+    struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
     int listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -193,11 +153,11 @@ graphql_proxy_main(Datum main_arg) {
                     add_socket_write(&ring, user_data->fd, outputSize);
                 }
             } else if (type == WRITE) {
-                add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
+                // add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
+                shutdown(user_data->fd, SHUT_RDWR);
             }
             io_uring_cqe_seen(&ring, cqe);
         }
-
     }
 
 socket_listen_fail:
@@ -235,7 +195,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         strcpy((char*)&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
         // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
         //             sizeof("Failed while parse HTTP resuest. Change and try again\n"));
-        goto close_client_connection;
+        goto write_fail_response;
     }
 
     parsed_method = (char*)malloc(method_len + 1);
@@ -295,7 +255,7 @@ parsed_header_name_malloc_fail:
 parsed_path_malloc_fail:
     free(parsed_method);
 parsed_method_malloc_fail:
-close_client_connection:
+write_fail_response:
     elog(LOG, "memory is free\n");
     return;
 }
