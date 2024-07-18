@@ -1,3 +1,18 @@
+# Installing
+```
+cmake .
+make
+make install (was created directory /usr/local/include/graphqlparser/c and called sudo make install)
+    -- Installing: /usr/local/lib/libgraphqlparser.so
+sudo cp libgraphqlparser.so /usr/lib/
+```
+
+# Using (from c-code)
+```
+gcc dump_json_ast.c -fPIC -L . -lgraphqlparser -o dump_json_ast
+./dump_json_ast
+```
+
 # libgraphqlparser
 
 libgraphqlparser is a parser for
