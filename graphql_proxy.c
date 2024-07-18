@@ -9,6 +9,10 @@
 #include "miscadmin.h"
 #include "postmaster/interrupt.h"
 #include "tcop/tcopprot.h"
+#include "libgraphqlparser/c/GraphQLAstNode.h"
+#include "libgraphqlparser/c/GraphQLParser.h"
+#include "libgraphqlparser/c/GraphQLAstToJSON.h"
+
 #include <arpa/inet.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
@@ -155,6 +159,7 @@ graphql_proxy_main(Datum main_arg) {
                 }
             } else if (type == WRITE) {
                 // add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
+
                 shutdown(user_data->fd, SHUT_RDWR);
             }
             io_uring_cqe_seen(&ring, cqe);
@@ -186,6 +191,8 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     char *query = NULL;
     size_t query_len;
     int err;
+    const char *error;
+
     *outputSize = 0;
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
@@ -243,6 +250,17 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
     elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
+
+    struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
+    if (!AST) {
+        printf("Parser failed with error: %s\n", error);
+        free((void *)error);  // NOLINT
+        return 1;
+    }
+
+    const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+    elog(LOG, "parsed json schema: %s\n", json);
+    free((void *)json);
 
     // close connection after completing request
 
