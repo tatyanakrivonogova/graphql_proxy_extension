@@ -2,6 +2,7 @@
 
 #include "http_parser.h"
 #include "fmgr.h"
+#include "executor/spi.h"
 #include "utils/builtins.h"
 #include "executor/executor.h"
 #include "postmaster/bgworker.h"
