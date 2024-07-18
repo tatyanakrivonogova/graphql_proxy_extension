@@ -20,6 +20,9 @@
 #include <unistd.h>
 #include <liburing.h>
 #include <netinet/in.h>
+#include <libpq/libpq.h>
+#include <postgresql/libpq-fe.h>
+#include <libpq/libpq-fs.h>
 
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
@@ -166,6 +169,46 @@ socket_bind_fail:
     close(listen_socket);
     return;
 }
+
+int 
+create_connection(PGconn* conn) {
+    char *conninfo = "dbname=postgres user=kanades host=localhost port=5432";
+    conn = PQconnectdb(conninfo);
+
+    if (PQstatus(conn) != CONNECTION_OK) {
+        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(conn));
+        PQfinish(conn);
+        return 0;
+    }
+    // We have successfully established a connection to the database server
+    elog(LOG, "Connection Established\n");
+    elog(LOG, "Port: %s\n", PQport(conn));
+    elog(LOG, "Host: %s\n", PQhost(conn));
+    elog(LOG, "DBName: %s\n", PQdb(conn));
+    return 1;
+}
+
+void close_connection(PGconn* conn) {
+    PQfinish(conn);
+    elog(LOG, "Libpq connection closed");
+}
+
+int
+exec_query(PGconn* conn, char* query) {
+    elog(LOG, "Start execution query: %s", query);
+    PGresult res = PQexec(conn, query);
+    ExecStatusType resStatus = PQresultStatus(res);
+    // convert status to string and log
+    elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
+    if (resStatus != PGRES_TUPLES_OK) {
+        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(conn));
+        PQclear(res);
+        return 0;
+    }
+    return 1;
+}
+
+
 
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
