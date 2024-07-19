@@ -171,20 +171,20 @@ socket_bind_fail:
 }
 
 int 
-create_connection(PGconn* conn) {
+create_connection(PGconn** conn) {
     char *conninfo = "dbname=postgres user=kanades host=localhost port=5432";
-    conn = PQconnectdb(conninfo);
-
-    if (PQstatus(conn) != CONNECTION_OK) {
+    *conn = PQconnectdb(conninfo);
+    
+    if (PQstatus(*conn) != CONNECTION_OK) {
         elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(conn));
-        PQfinish(conn);
+        PQfinish(*conn);
         return 0;
     }
     // We have successfully established a connection to the database server
     elog(LOG, "Connection Established\n");
-    elog(LOG, "Port: %s\n", PQport(conn));
-    elog(LOG, "Host: %s\n", PQhost(conn));
-    elog(LOG, "DBName: %s\n", PQdb(conn));
+    elog(LOG, "Port: %s\n", PQport(*conn));
+    elog(LOG, "Host: %s\n", PQhost(*conn));
+    elog(LOG, "DBName: %s\n", PQdb(*conn));
     return 1;
 }
 
@@ -194,24 +194,27 @@ void close_connection(PGconn* conn) {
 }
 
 int
-exec_query(PGconn* conn, char* query) {
+exec_query(PGconn** conn, char *query, PGresult** res) {
     elog(LOG, "Start execution query: %s", query);
-    PGresult res = PQexec(conn, query);
-    ExecStatusType resStatus = PQresultStatus(res);
+    *res = PQexec(*conn, query);
+    ExecStatusType resStatus = PQresultStatus(*res);
     // convert status to string and log
     elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
     if (resStatus != PGRES_TUPLES_OK) {
-        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(conn));
-        PQclear(res);
+        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*conn));
+        PQclear(*res);
         return 0;
     }
+    int rows = PQntuples(*res);
+    int cols = PQnfields(*res);
+    elog(LOG, "Number of rows: %d\n", rows);
+    elog(LOG, "Number of columns: %d\n", cols);
     return 1;
 }
 
-
-
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
+    test_connect();
     const char *method;
     size_t method_len;
     const char *path;
@@ -285,7 +288,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         *outputSize = query_len;
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
-    elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
+    //elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
     // close connection after completing request
 
