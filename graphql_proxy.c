@@ -200,6 +200,7 @@ graphql_proxy_main(Datum main_arg) {
                 }
             } else if (type == WRITE) {
                 // add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
+                elog(LOG, "shutdown socket on fd: %d", user_data->fd);
                 shutdown(user_data->fd, SHUT_RDWR);
             }
             io_uring_cqe_seen(&ring, cqe);
