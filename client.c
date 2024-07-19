@@ -50,59 +50,57 @@ int main(int argc, char* argv[]) {
 
     int bytes = 0;
 
-    memset(buffer, '\0', BUFFER_SIZE);
-    printf("Enter HTTP-request:\n");
+    while (1) {
+        freopen("/dev/tty", "r", stdin);
+        memset(buffer, '\0', BUFFER_SIZE);
+        printf("Enter HTTP-request (or press Ctrl-D to finish):\n");
 
-    int index = 0;
-    char c;
-    while ((c = fgetc(stdin)) != EOF) {
-        buffer[index++] = c;
-        if (index == BUFFER_SIZE) {
-            bytes = write(sd, buffer, index);
-            if (bytes == -1) {
-                printf("Failed while sending HTTP request\n");
-                return -1;
+        int index = 0;
+        char c;
+        while ((c = fgetc(stdin)) != EOF) {
+            buffer[index++] = c;
+            if (index == BUFFER_SIZE) {
+                bytes = write(sd, buffer, index);
+                if (bytes == -1) {
+                    printf("Failed while sending HTTP request\n");
+                    return -1;
+                }
+                memset(buffer, '\0', BUFFER_SIZE);
+                index = 0;
             }
-            memset(buffer, '\0', BUFFER_SIZE);
-            index = 0;
         }
-    }
-    buffer[index] = '\0';
+        
+        // user entered only Ctrl-D to exit program
+        if (index == 0 && feof(stdin)) {
+            break;
+        }
 
-    if (index != 0) {
+        // send http-request
         bytes = write(sd, buffer, index);
         if (bytes == -1) {
             printf("Failed while sending HTTP request\n");
             return -1;
         }
-    }
-    
-    int all_bytes = 0;
-    FILE* fout = fopen("response", "w+");
-    if (fout == NULL) {
-        printf("Failed while open output file\n");
-        
-    } else {
+
+        int all_bytes = 0;
+
         printf("Server response:\n");
         while(1) {
+            // receive http-response
             bytes = read(sd, buffer, BUFFER_SIZE);
             if (bytes <= 0) {
                 break;
             }
-            //printf("bytes: %d\n", bytes);
             all_bytes += bytes;
-            if (all_bytes % 10485760 == 0) {
-                printf(".");
-                fflush(stdout);
-            }
-            fwrite(buffer, sizeof(char), bytes, fout);
-            fflush(fout);
+            // save response to file
+            fwrite(buffer, sizeof(char), bytes, stdout);
+            fflush(stdout);
         }
-        printf("Common size: %d\n", all_bytes);
-        fclose(fout);
-        printf("End of response. Connection closed\n");
+        printf("End of response. Common size: %d\n", all_bytes);
     }
+
+    printf("Connection closed\n");
 
     close(sd);
     return 0;
- }
+}
