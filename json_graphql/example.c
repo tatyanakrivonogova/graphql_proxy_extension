@@ -115,7 +115,6 @@ int main() {
 	} 
 
     char *sql = (char*)calloc(QUERY_LENGTH, sizeof(char));
-    strcpy(sql, "CREATE TABLE ");
 
 	// access the JSON data 
 	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions"); 
@@ -124,7 +123,10 @@ int main() {
     {
         cJSON *definition = cJSON_GetArrayItem(definitions, i); 
         cJSON *kind_definition = cJSON_GetObjectItemCaseSensitive(definition, "kind"); 
-        if (cJSON_IsString(kind_definition) && (kind_definition->valuestring != NULL) && (strcmp(kind_definition->valuestring, "ObjectTypeDefinition") != 0)) continue;
+        if (cJSON_IsString(kind_definition) && (kind_definition->valuestring != NULL) 
+                && (strcmp(kind_definition->valuestring, "ObjectTypeDefinition") != 0)) continue;
+        
+        strcpy(sql, "CREATE TABLE ");
         cJSON *type_name = cJSON_GetObjectItemCaseSensitive(definition, "name"); 
         cJSON *type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value"); 
 
