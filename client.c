@@ -16,6 +16,12 @@ int main(int argc, char* argv[]) {
     int sd;
     struct sockaddr_in proxy_sd;
 
+    FILE* fout = fopen("response", "w+");
+    if (fout == NULL) {
+        printf("Failed while open output file\n");
+        return 0;
+    }
+
     if (argc < 3) {
         printf("Usage: ./client proxy_ip proxy_port\n");
         return 0;
@@ -93,8 +99,8 @@ int main(int argc, char* argv[]) {
             }
             all_bytes += bytes;
             // save response to file
-            fwrite(buffer, sizeof(char), bytes, stdout);
-            fflush(stdout);
+            fwrite(buffer, sizeof(char), bytes, fout);
+            fflush(fout);
         }
         printf("End of response. Common size: %d\n", all_bytes);
     }
