@@ -1,4 +1,9 @@
 type User {
   id: ID!
-  name: String!
+  name: [String!]!
+}
+
+type Message {
+  id: ID!
+  msg: String!
 }

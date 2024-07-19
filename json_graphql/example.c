@@ -1,7 +1,12 @@
 #include <stdio.h> 
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "cJSON.h" 
+
+#define NAME_LENGTH 63
+#define MAX_TYPES_NUMBER 100
+#define QUERY_LENGTH 256
 
 typedef struct {
     char* key;
@@ -109,7 +114,7 @@ int main() {
 		return 1; 
 	} 
 
-    char *sql = (char*)calloc(256, sizeof(char));
+    char *sql = (char*)calloc(QUERY_LENGTH, sizeof(char));
     strcpy(sql, "CREATE TABLE ");
 
 	// access the JSON data 
@@ -171,6 +176,31 @@ int main() {
             else if (field_type_type_kind != NULL && (cJSON_IsString(field_type_type_kind)) && (field_type_type_kind->valuestring != NULL) && (strcmp(field_type_type_kind->valuestring, "ListType") == 0))
             {
                 // ListType
+                cJSON *field_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type, "type"); 
+                cJSON *field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type"); 
+                cJSON *field_type_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "kind");
+                if (field_type_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_type_kind)) && (strcmp(field_type_type_type_type_kind->valuestring, "NamedType") == 0))
+                {
+                    // Lost of NNamedType
+                    cJSON *field_type_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "name");
+                    cJSON *field_type_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type_name, "value");
+
+                    // found type of field
+                    if (field_type_type_type_type_name_value != NULL && (cJSON_IsString(field_type_type_type_type_name_value)) && (field_type_type_type_type_name_value->valuestring != NULL)) { 
+                        printf("\t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring); 
+                        char *convertedType = getConfigValue(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
+                        if (convertedType == NULL) {
+                            printf("Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
+                        } else {
+                            // strcat(sql, field_type_type_name_value->valuestring);
+                            strcat(sql, convertedType);
+                            strcat(sql, " ARRAY ");
+                        }
+                    } 
+                } else {
+                    printf("Nested lists is not supported\n");
+                    return 1;
+                }
             }
             
             cJSON *field_type_kind = cJSON_GetObjectItemCaseSensitive(field_type, "kind"); 
@@ -185,8 +215,9 @@ int main() {
             if (j != cJSON_GetArraySize(fields)-1) strcat(sql, ", ");
         }
         strcat(sql, ");");
+        printf("sql query: %s\n", sql);
+        memset(sql, 0, QUERY_LENGTH);
     }
-    printf("sql query: %s\n", sql);
 
 	// delete the JSON object
 	cJSON_Delete(json);
