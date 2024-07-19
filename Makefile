@@ -10,7 +10,7 @@ OBJS = \
 EXTENSION = graphql_proxy
 DATA = graphql_proxy--1.0.sql
 
-SHLIB_LINK += -lev -luring -fPIC -L . -lgraphqlparser
+SHLIB_LINK += -lpq -luring -fPIC -lgraphqlparser
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
