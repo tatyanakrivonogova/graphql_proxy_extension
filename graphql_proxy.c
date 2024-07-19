@@ -52,7 +52,7 @@ void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, soc
 void add_socket_read(struct io_uring *ring, int fd, size_t size);
 void add_socket_write(struct io_uring *ring, int fd, size_t size);
 void parse_input(char* request, size_t request_len, int* outputSize, int fd);
-int create_connection(PGconn** conn);
+int create_connection(PGconn** conn, char* conn_info);
 void close_connection(PGconn** conn);
 int exec_query(PGconn** conn, char *query, PGresult** res);
 void test_connect(void);
@@ -79,10 +79,11 @@ graphql_proxy_start_worker(void) {
 
 void test_connect(void) {
     char *query = "INSERT INTO table1 values(501);";
+    char *conn_info = "dbname=postgres host=localhost port=5432";
     int rows, cols;
     PGconn *conn;
     PGresult *res;
-    if (!create_connection(&conn)) {
+    if (!create_connection(&conn, conn_info)) {
         return;
     }
 
@@ -212,10 +213,9 @@ socket_bind_fail:
 }
 
 int 
-create_connection(PGconn** conn) {
-    char *conninfo = "dbname=postgres user=kanades host=localhost port=5432";
-    *conn = PQconnectdb(conninfo);
-    
+create_connection(PGconn** conn, char* conn_info) {
+    *conn = PQconnectdb(conn_info);
+
     if (PQstatus(*conn) != CONNECTION_OK) {
         elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*conn));
         PQfinish(*conn);
@@ -274,7 +274,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     size_t query_len;
     int err;
     *outputSize = 0;
-    
+
      //example connection
     test_connect();
 
