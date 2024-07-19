@@ -3,7 +3,6 @@
 MODULE_big = graphql_proxy
 OBJS = \
   $(WIN32RES) \
-  coro.o \
   http_parser.o \
   graphql_proxy.o
 
