@@ -79,10 +79,15 @@ void test_connect(void) {
         return;
     }
     PGresult *res;
-    char* query = "SELECT * FROM table1;";
+
+    // char* query = "SELECT * FROM table1;";
+    //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
+    exec_query(&conn, "SELECT * FROM table1;", &res);
+    char *query = "INSERT INTO table1 values(501);";
     exec_query(&conn, query, &res);
     int rows = PQntuples(res);
     int cols = PQnfields(res);
+
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
     // Print the column names
@@ -98,6 +103,9 @@ void test_connect(void) {
         }
         elog(LOG, "");
     }
+
+    //clear used resources
+    PQclear(res);
     close_connection(&conn);
 }
 
@@ -228,16 +236,14 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
     ExecStatusType resStatus = PQresultStatus(*res);
     // convert status to string and log
     elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
-    if (resStatus != PGRES_TUPLES_OK) {
+
+    //PGRES_COMMAN_OK - Successful completion of a command returning no data
+    //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
+    if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
         elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*conn));
         PQclear(*res);
         return 0;
     }
-    // int rows = PQntuples(*res);
-    // int cols = PQnfields(*res);
-
-    // elog(LOG, "Number of rows: %d\n", rows);
-    // elog(LOG, "Number of columns: %d\n", cols);
     return 1;
 }
 
