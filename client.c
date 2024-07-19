@@ -101,6 +101,7 @@ int main(int argc, char* argv[]) {
             // save response to file
             fwrite(buffer, sizeof(char), bytes, fout);
             fflush(fout);
+            break;
         }
         printf("End of response. Common size: %d\n", all_bytes);
     }
