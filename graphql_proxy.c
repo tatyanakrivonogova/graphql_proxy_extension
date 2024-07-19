@@ -73,6 +73,8 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
+
+
 void
 graphql_proxy_main(Datum main_arg) {
     struct io_uring_params params;
@@ -205,10 +207,11 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
         PQclear(*res);
         return 0;
     }
-    int rows = PQntuples(*res);
-    int cols = PQnfields(*res);
-    elog(LOG, "Number of rows: %d\n", rows);
-    elog(LOG, "Number of columns: %d\n", cols);
+    // int rows = PQntuples(*res);
+    // int cols = PQnfields(*res);
+
+    // elog(LOG, "Number of rows: %d\n", rows);
+    // elog(LOG, "Number of columns: %d\n", cols);
     return 1;
 }
 
