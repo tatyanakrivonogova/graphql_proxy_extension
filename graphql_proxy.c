@@ -279,6 +279,8 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     size_t query_len;
     int err;
     const char *error;
+    struct GraphQLAstNode * AST;
+    const char *json;
 
     *outputSize = 0;
 
@@ -342,19 +344,20 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     //res = write(io_handle->fd, query, (size_t)query_len);
     elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
-    struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
+    AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
     if (!AST) {
         printf("Parser failed with error: %s\n", error);
         free((void *)error);  // NOLINT
-        return 1;
+        goto free_memory;
     }
 
-    const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+    json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
     elog(LOG, "parsed json schema: %s\n", json);
     free((void *)json);
 
     // close connection after completing request
 
+free_memory:
     if (query) free(query);
 query_malloc_fail:
     if (parsed_header_value) free(parsed_header_value);
