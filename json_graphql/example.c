@@ -8,10 +8,20 @@
 #define MAX_TYPES_NUMBER 100
 #define QUERY_LENGTH 256
 
+// reflection from QraphQL types to PostgresQL types
 typedef struct {
     char* key;
     char* value;
 } ConfigEntry;
+
+
+// types which are already converted to PostgresQL
+typedef struct {
+    size_t numCreatedTypes;
+    char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
+} Types;
+
+Types types;
 
 ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     FILE* file = fopen(filename, "r");
@@ -69,7 +79,7 @@ char* getConfigValue(char *key, ConfigEntry *configEntries, size_t numEntries) {
     if (configEntries) {
         for (size_t i = 0; i < numEntries; i++)
             if (strcmp(key, configEntries[i].key) == 0) return configEntries[i].value;
-        free(configEntries);
+        // free(configEntries);
     }
     return NULL;
 }
@@ -82,6 +92,13 @@ void freeConfig(ConfigEntry *configEntries, size_t numEntries) {
         }
         free(configEntries);
     }
+}
+
+bool isTypeExists(char* type_name) {
+    for (size_t i = 0; i < types.numCreatedTypes; ++i) {
+        if (strcmp(type_name, types.createdTypes[i]) == 0) return true;
+    }
+    return false;
 }
 
 int main() { 
@@ -119,6 +136,8 @@ int main() {
 	// access the JSON data 
 	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions"); 
     printf("definitions: %p\n", definitions);
+
+    types.numCreatedTypes = 0;
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
         cJSON *definition = cJSON_GetArrayItem(definitions, i); 
@@ -135,6 +154,10 @@ int main() {
             printf("table[%d]: %s\n", i, type_name_value->valuestring);
             strcat(sql, type_name_value->valuestring);
             strcat(sql, "(");
+
+            // add type to types array
+            strcpy(types.createdTypes[types.numCreatedTypes++], type_name_value->valuestring);
+            printf("--- types number: %ld\n", types.numCreatedTypes);
         } 
 
         cJSON *fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
@@ -167,7 +190,13 @@ int main() {
                     printf("\t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring); 
                     char *convertedType = getConfigValue(field_type_type_name_value->valuestring, configEntries, numEntries);
                     if (convertedType == NULL) {
-                        printf("Type is not found: %s\n", field_type_type_name_value->valuestring);
+                        if (isTypeExists(field_type_type_name_value->valuestring)) {
+                            printf("\t FOREIGN KEY IS NEEDED\n");
+                            strcat(sql, "[fk]");
+                            strcat(sql, " ");
+                        } else {
+                            printf("Type is not found: %s\n", field_type_type_name_value->valuestring);
+                        }
                     } else {
                         // strcat(sql, field_type_type_name_value->valuestring);
                         strcat(sql, convertedType);
@@ -221,8 +250,9 @@ int main() {
         memset(sql, 0, QUERY_LENGTH);
     }
 
+    free(sql);
+    freeConfig(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);
-    freeConfig(configEntries, numEntries);
 	return 0; 
 }

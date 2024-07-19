@@ -6,4 +6,5 @@ type User {
 type Message {
   id: ID!
   msg: String!
+  sender: User!
 }
