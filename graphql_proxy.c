@@ -52,6 +52,10 @@ void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, soc
 void add_socket_read(struct io_uring *ring, int fd, size_t size);
 void add_socket_write(struct io_uring *ring, int fd, size_t size);
 void parse_input(char* request, size_t request_len, int* outputSize, int fd);
+int create_connection(PGconn** conn);
+void close_connection(PGconn** conn);
+int exec_query(PGconn** conn, char *query, PGresult** res);
+void test_connect(void);
 
 void
 _PG_init(void) {
@@ -74,19 +78,20 @@ graphql_proxy_start_worker(void) {
 }
 
 void test_connect(void) {
+    char *query = "INSERT INTO table1 values(501);";
+    int rows, cols;
     PGconn *conn;
+    PGresult *res;
     if (!create_connection(&conn)) {
         return;
     }
-    PGresult *res;
 
     // char* query = "SELECT * FROM table1;";
     //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
     exec_query(&conn, "SELECT * FROM table1;", &res);
-    char *query = "INSERT INTO table1 values(501);";
     exec_query(&conn, query, &res);
-    int rows = PQntuples(res);
-    int cols = PQnfields(res);
+    rows = PQntuples(res);
+    cols = PQnfields(res);
 
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
@@ -101,7 +106,7 @@ void test_connect(void) {
         // Print the column value
             elog(LOG, "%s\t", PQgetvalue(res, i, j));
         }
-        elog(LOG, "");
+        elog(LOG, "-------------------------------------------------------");
     }
 
     //clear used resources
@@ -212,7 +217,7 @@ create_connection(PGconn** conn) {
     *conn = PQconnectdb(conninfo);
     
     if (PQstatus(*conn) != CONNECTION_OK) {
-        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(conn));
+        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*conn));
         PQfinish(*conn);
         return 0;
     }
@@ -224,16 +229,18 @@ create_connection(PGconn** conn) {
     return 1;
 }
 
-void close_connection(PGconn** conn) {
+void
+close_connection(PGconn** conn) {
     PQfinish(*conn);
     elog(LOG, "Libpq connection closed");
 }
 
 int
 exec_query(PGconn** conn, char *query, PGresult** res) {
+    ExecStatusType resStatus;
     elog(LOG, "Start execution query: %s", query);
     *res = PQexec(*conn, query);
-    ExecStatusType resStatus = PQresultStatus(*res);
+    resStatus = PQresultStatus(*res);
     // convert status to string and log
     elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
 
@@ -249,9 +256,6 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
 
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
-    //example connection
-    test_connect();
-
     const char *method;
     size_t method_len;
     const char *path;
@@ -270,6 +274,10 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     size_t query_len;
     int err;
     *outputSize = 0;
+    
+     //example connection
+    test_connect();
+
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
