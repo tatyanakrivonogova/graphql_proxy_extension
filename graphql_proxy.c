@@ -73,7 +73,33 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
+void test_connect(void) {
+    PGconn *conn;
+    if (!create_connection(&conn)) {
+        return;
+    }
+    PGresult *res;
+    char* query = "SELECT * FROM table1;";
+    exec_query(&conn, query, &res);
+    int rows = PQntuples(res);
+    int cols = PQnfields(res);
+    elog(LOG, "Number of rows: %d\n", rows);
+    elog(LOG, "Number of columns: %d\n", cols);
+    // Print the column names
+    for (int i = 0; i < cols; i++) {
+        elog(LOG, "%s\t", PQfname(res, i));
+    }
 
+    // Print all the rows and columns
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+        // Print the column value
+            elog(LOG, "%s\t", PQgetvalue(res, i, j));
+        }
+        elog(LOG, "");
+    }
+    close_connection(&conn);
+}
 
 void
 graphql_proxy_main(Datum main_arg) {
@@ -190,8 +216,8 @@ create_connection(PGconn** conn) {
     return 1;
 }
 
-void close_connection(PGconn* conn) {
-    PQfinish(conn);
+void close_connection(PGconn** conn) {
+    PQfinish(*conn);
     elog(LOG, "Libpq connection closed");
 }
 
@@ -217,7 +243,9 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
 
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
+    //example connection
     test_connect();
+
     const char *method;
     size_t method_len;
     const char *path;
