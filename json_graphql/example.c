@@ -8,14 +8,14 @@
 #define MAX_TYPES_NUMBER 100
 #define QUERY_LENGTH 256
 
-// reflection from QraphQL types to PostgresQL types
+// reflection from QraphQL types to Postgresql_create types
 typedef struct {
     char* key;
     char* value;
 } ConfigEntry;
 
 
-// types which are already converted to PostgresQL
+// types which are already converted to Postgresql_create
 typedef struct {
     size_t numCreatedTypes;
     char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
@@ -79,7 +79,6 @@ char* getConfigValue(char *key, ConfigEntry *configEntries, size_t numEntries) {
     if (configEntries) {
         for (size_t i = 0; i < numEntries; i++)
             if (strcmp(key, configEntries[i].key) == 0) return configEntries[i].value;
-        // free(configEntries);
     }
     return NULL;
 }
@@ -131,7 +130,8 @@ int main() {
 		return 1; 
 	} 
 
-    char *sql = (char*)calloc(QUERY_LENGTH, sizeof(char));
+    char *sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
+    char *sql_alter = (char*)calloc(QUERY_LENGTH, sizeof(char));
 
 	// access the JSON data 
 	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions"); 
@@ -145,15 +145,20 @@ int main() {
         if (cJSON_IsString(kind_definition) && (kind_definition->valuestring != NULL) 
                 && (strcmp(kind_definition->valuestring, "ObjectTypeDefinition") != 0)) continue;
         
-        strcpy(sql, "CREATE TABLE ");
+        strcpy(sql_create, "CREATE TABLE ");
         cJSON *type_name = cJSON_GetObjectItemCaseSensitive(definition, "name"); 
         cJSON *type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value"); 
 
         // found name of table
         if (cJSON_IsString(type_name_value) && (type_name_value->valuestring != NULL)) { 
             printf("table[%d]: %s\n", i, type_name_value->valuestring);
-            strcat(sql, type_name_value->valuestring);
-            strcat(sql, "(");
+            strcat(sql_create, type_name_value->valuestring);
+            strcat(sql_create, "(");
+
+            // add surrogate primary key to table
+            strcat(sql_create, "pk_");
+            strcat(sql_create, type_name_value->valuestring);
+            strcat(sql_create, " SERIAL PRIMARY KEY");
 
             // add type to types array
             strcpy(types.createdTypes[types.numCreatedTypes++], type_name_value->valuestring);
@@ -163,6 +168,7 @@ int main() {
         cJSON *fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
         for (int j = 0; j < cJSON_GetArraySize(fields); ++j)
         {
+            strcat(sql_create, ", ");
             cJSON *field = cJSON_GetArrayItem(fields, j); 
             cJSON *kind_field = cJSON_GetObjectItemCaseSensitive(field, "kind"); 
             if (cJSON_IsString(kind_field) && (kind_field->valuestring != NULL) && (strcmp(kind_field->valuestring, "FieldDefinition") != 0)) continue;
@@ -172,8 +178,8 @@ int main() {
             // found name of field
             if (cJSON_IsString(field_name_value) && (field_name_value->valuestring != NULL)) { 
                 printf("\tfield[%d]: %s\n", j, field_name_value->valuestring); 
-                strcat(sql, field_name_value->valuestring);
-                strcat(sql, " ");
+                strcat(sql_create, field_name_value->valuestring);
+                strcat(sql_create, " ");
             } 
 
             cJSON *field_type = cJSON_GetObjectItemCaseSensitive(field, "type"); 
@@ -191,16 +197,34 @@ int main() {
                     char *convertedType = getConfigValue(field_type_type_name_value->valuestring, configEntries, numEntries);
                     if (convertedType == NULL) {
                         if (isTypeExists(field_type_type_name_value->valuestring)) {
-                            printf("\t FOREIGN KEY IS NEEDED\n");
-                            strcat(sql, "[fk]");
-                            strcat(sql, " ");
+                            printf("\tFOREIGN KEY IS NEEDED\n");
+                            strcat(sql_create, "INT ");
+
+                            // query for adding foreign key
+                            // ALTER TABLE order_items
+                            // ADD CONSTRAINT fk_order
+                            // FOREIGN KEY (order_id) REFERENCES orders(id);
+                            strcat(sql_alter, "ALTER TABLE ");
+                            strcat(sql_alter, type_name_value->valuestring);
+                            strcat(sql_alter, " ADD CONSTRAINT fk_");
+                            strcat(sql_alter, type_name_value->valuestring);
+                            strcat(sql_alter, "_");
+                            strcat(sql_alter, field_type_type_name_value->valuestring);
+                            strcat(sql_alter, " FOREIGN KEY (");
+                            strcat(sql_alter, field_name_value->valuestring);
+                            strcat(sql_alter, ") REFERENCES ");
+                            strcat(sql_alter, field_type_type_name_value->valuestring);
+                            strcat(sql_alter, "(pk_");
+                            strcat(sql_alter, field_type_type_name_value->valuestring);
+                            strcat(sql_alter, ");");
+
+                            printf("sql_alter: %s\n", sql_alter);
                         } else {
                             printf("Type is not found: %s\n", field_type_type_name_value->valuestring);
                         }
                     } else {
-                        // strcat(sql, field_type_type_name_value->valuestring);
-                        strcat(sql, convertedType);
-                        strcat(sql, " ");
+                        strcat(sql_create, convertedType);
+                        strcat(sql_create, " ");
                     }
                 } 
             }
@@ -223,9 +247,9 @@ int main() {
                         if (convertedType == NULL) {
                             printf("Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
                         } else {
-                            // strcat(sql, field_type_type_name_value->valuestring);
-                            strcat(sql, convertedType);
-                            strcat(sql, " ARRAY ");
+                            // strcat(sql_create, field_type_type_name_value->valuestring);
+                            strcat(sql_create, convertedType);
+                            strcat(sql_create, " ARRAY ");
                         }
                     } 
                 } else {
@@ -240,17 +264,19 @@ int main() {
             if (cJSON_IsString(field_type_kind) && (field_type_kind->valuestring != NULL)) { 
                 printf("\t\tfield_kind[%d]: %s\n", j, field_type_kind->valuestring); 
                 if (strcmp(field_type_kind->valuestring, "NonNullType") == 0)
-                    strcat(sql, "NOT NULL");
+                    strcat(sql_create, "NOT NULL");
             } 
 
-            if (j != cJSON_GetArraySize(fields)-1) strcat(sql, ", ");
+            // if (j != cJSON_GetArraySize(fields)-1) strcat(sql_create, ", ");
         }
-        strcat(sql, ");");
-        printf("sql query: %s\n", sql);
-        memset(sql, 0, QUERY_LENGTH);
+        strcat(sql_create, ");");
+        printf("sql_create query: %s\n", sql_create);
+        memset(sql_create, 0, QUERY_LENGTH);
+        memset(sql_alter, 0, QUERY_LENGTH);
     }
 
-    free(sql);
+    free(sql_create);
+    free(sql_alter);
     freeConfig(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);

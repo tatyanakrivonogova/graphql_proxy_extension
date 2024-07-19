@@ -1,4 +1,4 @@
-type User {
+type Person {
   id: ID!
   name: [String!]!
 }
@@ -6,5 +6,5 @@ type User {
 type Message {
   id: ID!
   msg: String!
-  sender: User!
+  sender: Person!
 }
