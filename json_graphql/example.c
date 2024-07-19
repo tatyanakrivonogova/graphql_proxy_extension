@@ -112,6 +112,8 @@ void createForeignKey(char* sql_alter, char* table_name, char* another_table_nam
     strcat(sql_alter, table_name);
     strcat(sql_alter, "_");
     strcat(sql_alter, another_table_name);
+    strcat(sql_alter, "_");
+    strcat(sql_alter, field_name);
     strcat(sql_alter, " FOREIGN KEY (");
     strcat(sql_alter, field_name);
     strcat(sql_alter, ") REFERENCES ");
@@ -142,7 +144,7 @@ int main() {
 	}
 
 	// read the file contents into a string
-	char buffer[4096];
+	char buffer[10000];
 	int len = fread(buffer, 1, sizeof(buffer), fp);
 	fclose(fp);
 

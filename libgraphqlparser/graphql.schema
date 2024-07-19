@@ -7,4 +7,5 @@ type Message {
   id: ID!
   msg: String!
   sender: Person!
+  receivers: Person!
 }
