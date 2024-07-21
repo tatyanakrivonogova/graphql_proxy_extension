@@ -4,6 +4,8 @@ MODULE_big = graphql_proxy
 OBJS = \
   $(WIN32RES) \
   http_parser.o \
+  input_parsing.o \
+  event_handling.o \
   graphql_proxy.o
 
 EXTENSION = graphql_proxy

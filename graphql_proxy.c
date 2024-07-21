@@ -1,17 +1,14 @@
-#include "postgres.h"
+#include "event_handling.h"
+#include "input_parsing.h"
 
-#include "http_parser.h"
+#include "postgres.h"
 #include "fmgr.h"
-#include "executor/spi.h"
 #include "utils/builtins.h"
 #include "executor/executor.h"
 #include "postmaster/bgworker.h"
 #include "miscadmin.h"
 #include "postmaster/interrupt.h"
 #include "tcop/tcopprot.h"
-#include "libgraphqlparser/c/GraphQLAstNode.h"
-#include "libgraphqlparser/c/GraphQLParser.h"
-#include "libgraphqlparser/c/GraphQLAstToJSON.h"
 
 #include <arpa/inet.h>
 #include <arpa/inet.h>
@@ -22,40 +19,23 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <liburing.h>
 #include <netinet/in.h>
+#include <liburing.h>
+
+#include "executor/spi.h"
+
 #include <libpq/libpq.h>
-#include <postgresql/libpq-fe.h>
 #include <libpq/libpq-fs.h>
+#include <postgresql/libpq-fe.h>
+
 
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
-#define NUM_HEADERS             (100)
-#define MAX_CONNECTIONS      (10)
 #define MAX_ENTRIES          (10)
-#define MAX_MESSAGE_LEN      (512)
-
-typedef struct conn_info {
-    int fd;
-    unsigned type;
-} conn_info;
-
-conn_info conns[MAX_CONNECTIONS];
-char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
-
-enum {
-    ACCEPT,
-    READ,
-    WRITE,
-};
 
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
-void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len);
-void add_socket_read(struct io_uring *ring, int fd, size_t size);
-void add_socket_write(struct io_uring *ring, int fd, size_t size);
-void parse_input(char* request, size_t request_len, int* outputSize, int fd);
 int create_connection(PGconn** conn, char* conn_info);
 void close_connection(PGconn** conn);
 int exec_query(PGconn** conn, char *query, PGresult** res);
@@ -79,44 +59,6 @@ graphql_proxy_start_worker(void) {
 	strcpy(worker.bgw_type, "graphql_proxy graphql_proxy_server");
 
 	RegisterBackgroundWorker(&worker);
-}
-
-void test_connect(void) {
-    char *query = "INSERT INTO table1 values(501);";
-    char *conn_info = "dbname=postgres host=localhost port=5432";
-    int rows, cols;
-    PGconn *conn;
-    PGresult *res;
-    if (!create_connection(&conn, conn_info)) {
-        return;
-    }
-
-    // char* query = "SELECT * FROM table1;";
-    //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
-    exec_query(&conn, "SELECT * FROM table1;", &res);
-    exec_query(&conn, query, &res);
-    rows = PQntuples(res);
-    cols = PQnfields(res);
-
-    elog(LOG, "Number of rows: %d\n", rows);
-    elog(LOG, "Number of columns: %d\n", cols);
-    // Print the column names
-    for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(res, i));
-    }
-
-    // Print all the rows and columns
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-        // Print the column value
-            elog(LOG, "%s\t", PQgetvalue(res, i, j));
-        }
-        elog(LOG, "-------------------------------------------------------");
-    }
-
-    //clear used resources
-    PQclear(res);
-    close_connection(&conn);
 }
 
 void
@@ -260,164 +202,40 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
     return 1;
 }
 
-void
-parse_input(char* request, size_t request_len, int* outputSize, int fd) {
-    const char *method;
-    size_t method_len;
-    const char *path;
-    size_t path_len;
-    int minor_version;
-    size_t num_headers;
-    struct phr_header headers[NUM_HEADERS];
-
-    char* parsed_method;
-    char* parsed_path;
-    char* parsed_header_name = NULL;
-    char* parsed_header_value = NULL;
-
-    char* query_begin;
-    char *query = NULL;
-    size_t query_len;
-    int err;
-    const char *error;
-    struct GraphQLAstNode * AST;
-    const char *json;
-
-    *outputSize = 0;
-
-     //example connection
-    test_connect();
-
-    elog(LOG, "read from client: %ld\n", request_len);
-    num_headers = NUM_HEADERS;
-    err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
-    if (err == -1 || err == -2) {
-        printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
-        *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
-        strcpy((char*)&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
-        // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
-        //             sizeof("Failed while parse HTTP resuest. Change and try again\n"));
-        goto write_fail_response;
+void test_connect(void) {
+    char *query = "INSERT INTO table1 values(501);";
+    char *conn_info = "dbname=postgres host=localhost port=5432";
+    int rows, cols;
+    PGconn *conn;
+    PGresult *res;
+    if (!create_connection(&conn, conn_info)) {
+        return;
     }
 
-    parsed_method = (char*)malloc(method_len + 1);
-    if (!parsed_method) goto parsed_method_malloc_fail;
-    parsed_path = (char*)malloc(path_len + 1);
-    if (!parsed_path) goto parsed_path_malloc_fail;
-    parsed_method[method_len] = '\0';
-    parsed_path[path_len] = '\0';
+    // char* query = "SELECT * FROM table1;";
+    //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
+    exec_query(&conn, "SELECT * FROM table1;", &res);
+    exec_query(&conn, query, &res);
+    rows = PQntuples(res);
+    cols = PQnfields(res);
 
-    strncpy(parsed_method, method, method_len);
-    strncpy(parsed_path, path, path_len);
-
-    elog(LOG, "parsed method: %ld %s\n", method_len, parsed_method);
-    elog(LOG, "parsed path: %ld %s\n", path_len, parsed_path);
-    elog(LOG, "parsed minor version: %d\n", minor_version);
-    elog(LOG, "parsed num headers: %ld\n", num_headers);
-        
-    // parsing of headers
-    for (size_t i = 0; i < num_headers; ++i) {
-        parsed_header_name = (char*)malloc(headers[i].name_len + 1);
-        if (!parsed_header_name) goto parsed_header_name_malloc_fail;
-        parsed_header_value = (char*)malloc(headers[i].value_len + 1);
-        if (!parsed_header_value) goto parsed_header_value_malloc_fail;
-        parsed_header_name[headers[i].name_len] = '\0';
-        parsed_header_value[headers[i].value_len] = '\0';
-        strncpy(parsed_header_name, headers[i].name, headers[i].name_len);
-        strncpy(parsed_header_value, headers[i].value, headers[i].value_len);
-        elog(LOG, "parsed header: %s: %s\n", parsed_header_name, parsed_header_value);
+    elog(LOG, "Number of rows: %d\n", rows);
+    elog(LOG, "Number of columns: %d\n", cols);
+    // Print the column names
+    for (int i = 0; i < cols; i++) {
+        elog(LOG, "%s\t", PQfname(res, i));
     }
 
-    // parsing query
-    if ((query_begin = strstr(request, "\n\n")) == 0) {
-        elog(LOG, "query is empty\n");
-        query_len = 0;
-    } else {
-        query_len = request + request_len - query_begin - 2;
-        query = (char*)malloc(query_len+1);
-        if (!query) goto query_malloc_fail;
-        query[query_len] = '\0';
-        strncpy(query, query_begin + 2, query_len);
-        elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-        strcpy(bufs[fd], query);
-        *outputSize = query_len;
-    }
-    //res = write(io_handle->fd, query, (size_t)query_len);
-    elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
-
-    AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
-    if (!AST) {
-        printf("Parser failed with error: %s\n", error);
-        free((void *)error);  // NOLINT
-        goto free_memory;
+    // Print all the rows and columns
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+        // Print the column value
+            elog(LOG, "%s\t", PQgetvalue(res, i, j));
+        }
+        elog(LOG, "-------------------------------------------------------");
     }
 
-    json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
-    elog(LOG, "parsed json schema: %s\n", json);
-    free((void *)json);
-
-    // close connection after completing request
-
-free_memory:
-    if (query) free(query);
-query_malloc_fail:
-    if (parsed_header_value) free(parsed_header_value);
-parsed_header_value_malloc_fail:
-    if (parsed_header_name) free(parsed_header_name);
-parsed_header_name_malloc_fail:
-    free(parsed_path);
-parsed_path_malloc_fail:
-    free(parsed_method);
-parsed_method_malloc_fail:
-write_fail_response:
-    elog(LOG, "memory is free\n");
-    return;
-}
-
-void
-add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len) {
-    conn_info *conn_i;
-    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
-    io_uring_prep_accept(sqe, fd, client_addr, client_len, 0);
-
-    conn_i = &conns[fd];
-    conn_i->fd = fd;
-    conn_i->type = ACCEPT;
-
-    io_uring_sqe_set_data(sqe, conn_i);
-}
-
-void
-add_socket_read(struct io_uring *ring, int fd, size_t size) {
-    struct io_uring_sqe *sqe;
-    conn_info *conn_i;
-
-    elog(LOG, "Start socket_read");
-    sqe = io_uring_get_sqe(ring);
-    io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
-    elog(LOG, "Read buf from fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
-
-    conn_i = &conns[fd];
-    conn_i->fd = fd;
-    conn_i->type = READ;
-
-    io_uring_sqe_set_data(sqe, conn_i);
-}
-
-void
-add_socket_write(struct io_uring *ring, int fd, size_t size) {
-    conn_info *conn_i;
-    struct io_uring_sqe *sqe;
-
-    elog(LOG, "Start socket_write");
-    elog(LOG, "Write buf into fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
-    sqe = io_uring_get_sqe(ring);
-    elog(LOG, "Get uring sqe done");
-    io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
-
-    conn_i = &conns[fd];
-    conn_i->fd = fd;
-    conn_i->type = WRITE;
-
-    io_uring_sqe_set_data(sqe, conn_i);
+    //clear used resources
+    PQclear(res);
+    close_connection(&conn);
 }
