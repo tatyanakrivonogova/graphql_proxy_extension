@@ -8,7 +8,7 @@
 #include "../json_graphql/resolvers/resolverLoader.h"
 
 
-bool isTypeExists(char* type_name) {
+bool is_type_exists(char* type_name) {
     for (size_t i = 0; i < types.numCreatedTypes; ++i) {
         if (strcmp(type_name, types.createdTypes[i]) == 0) return true;
     }
@@ -16,7 +16,7 @@ bool isTypeExists(char* type_name) {
 }
 
 
-void createForeignKey(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
+void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
     // query for adding foreign key
     strcat(sql_alter, "ALTER TABLE ");
     strcat(sql_alter, table_name);
@@ -35,20 +35,23 @@ void createForeignKey(char* sql_alter, char* table_name, char* another_table_nam
     strcat(sql_alter, ");");
 }
 
-void freeAlterQueries(char** sql_alter_queries, size_t sql_alter_queries_num) {
+void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) {
     for (size_t i = 0; i < sql_alter_queries_num; ++i) {
         free(sql_alter_queries[i]);
     }
 }
 
-void schema_convert(char *json_schema) { 
+void schema_convert(const char *json_schema) { 
+    cJSON *json;
+    cJSON *definitions;
+
     char *sql_create;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num;
 
     const char* filename = "../contrib/graphql_proxy/schema/config.txt";
     size_t numEntries;
-    ConfigEntry* configEntries = loadConfigFile(filename, &numEntries);
+    ConfigEntry* configEntries = load_config_file(filename, &numEntries);
     if (configEntries == NULL) return;
 
 	// open the file
@@ -65,14 +68,14 @@ void schema_convert(char *json_schema) {
 	// fclose(fp);
 
 	// parse the JSON data
-	cJSON *json = cJSON_Parse(json_schema);
+	json = cJSON_Parse(json_schema);
 	if (json == NULL) {
 		const char *error_ptr = cJSON_GetErrorPtr();
 		if (error_ptr != NULL) {
 			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_schema);
 		}
 		cJSON_Delete(json);
-        freeConfig(configEntries, numEntries);
+        free_config(configEntries, numEntries);
 		return;
 	}
 
@@ -80,7 +83,7 @@ void schema_convert(char *json_schema) {
     sql_alter_queries_num = 0;
 
 	// access the JSON data
-	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
+	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
     elog(LOG, "definitions: %p\n", definitions);
 
     types.numCreatedTypes = 0;
@@ -88,29 +91,42 @@ void schema_convert(char *json_schema) {
     mutations.numCreatedMutations = 0;
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
-        cJSON *definition = cJSON_GetArrayItem(definitions, i);
-        cJSON *definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
+        cJSON *definition;
+        cJSON *definition_kind;
+        cJSON *definition_name;
+        cJSON *definition_name_value;
+        cJSON *type_name;
+        cJSON *type_name_value;
+        cJSON *fields;
+        
+        definition = cJSON_GetArrayItem(definitions, i);
+        definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
         if (definition_kind != NULL && (cJSON_IsString(definition_kind)) && (definition_kind->valuestring != NULL)
                 && (strcmp(definition_kind->valuestring, "ObjectTypeDefinition") != 0)) continue;
 
-        cJSON *definition_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
-        cJSON *definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
+        definition_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
+        definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
             if (strcmp(definition_name_value->valuestring, "Query") == 0) {
                 // parse query name
                 cJSON *query_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
                 for (int j = 0; j < cJSON_GetArraySize(query_fields); ++j)
                 {
-                    cJSON *query_field = cJSON_GetArrayItem(query_fields, j);
-                    cJSON *query_field_name = cJSON_GetObjectItemCaseSensitive(query_field, "name");
-                    cJSON *query_field_name_value = cJSON_GetObjectItemCaseSensitive(query_field_name, "value");
+                    cJSON *query_field;
+                    cJSON *query_field_name;
+                    cJSON *query_field_name_value;
+                    char* query_body;
+
+                    query_field = cJSON_GetArrayItem(query_fields, j);
+                    query_field_name = cJSON_GetObjectItemCaseSensitive(query_field, "name");
+                    query_field_name_value = cJSON_GetObjectItemCaseSensitive(query_field_name, "value");
                     // elog(LOG, "Query %s\n", query_field_name_value->valuestring);
                     if (query_field_name_value != NULL && (cJSON_IsString(query_field_name_value) && (query_field_name_value->valuestring != NULL))) {
                         strcpy(queries.createdQueries[queries.numCreatedQueries++], query_field_name_value->valuestring);
                     }
 
                     // get sql-code for query
-                    char* query_body = load_function_body(query_field_name_value->valuestring);
+                    query_body = load_function_body(query_field_name_value->valuestring);
                     if (query_body != NULL) {
                         char *formatted_query = (char*)malloc(QUERY_LENGTH);
                         sprintf(formatted_query, query_body, 10);
@@ -127,16 +143,21 @@ void schema_convert(char *json_schema) {
                 cJSON *mutation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
                 for (int j = 0; j < cJSON_GetArraySize(mutation_fields); ++j)
                 {
-                    cJSON *mutation_field = cJSON_GetArrayItem(mutation_fields, j);
-                    cJSON *mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
-                    cJSON *mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
+                    cJSON *mutation_field;
+                    cJSON *mutation_field_name;
+                    cJSON *mutation_field_name_value;
+                    char* mutation_body;
+
+                    mutation_field = cJSON_GetArrayItem(mutation_fields, j);
+                    mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
+                    mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
                     // elog(LOG, "Mutation %s\n", mutation_field_name_value->valuestring);
                     if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
                         strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
                     }
 
                     // get sql-code for mutation
-                    char* mutation_body = load_function_body(mutation_field_name_value->valuestring);
+                    mutation_body = load_function_body(mutation_field_name_value->valuestring);
                     if (mutation_body != NULL) {
                         elog(LOG, "Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
                         free(mutation_body);
@@ -150,8 +171,8 @@ void schema_convert(char *json_schema) {
 
         
         strcpy(sql_create, "CREATE TABLE ");
-        cJSON *type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
-        cJSON *type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value");
+        type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
+        type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value");
 
         // found name of table
         if (cJSON_IsString(type_name_value) && (type_name_value->valuestring != NULL)) {
@@ -169,16 +190,25 @@ void schema_convert(char *json_schema) {
             elog(LOG, "--- types number: %ld\n", types.numCreatedTypes);
         }
 
-        cJSON *fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
+        fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
         for (int j = 0; j < cJSON_GetArraySize(fields); ++j)
         {
+            cJSON *field;
+            cJSON *kind_field;
+            cJSON *field_name;
+            cJSON *field_name_value;
+            cJSON *field_type;
+            cJSON *field_type_type;
+            cJSON *field_type_type_kind;
+            cJSON *field_type_kind;
+
             strcat(sql_create, ", ");
-            cJSON *field = cJSON_GetArrayItem(fields, j);
-            cJSON *kind_field = cJSON_GetObjectItemCaseSensitive(field, "kind");
+            field = cJSON_GetArrayItem(fields, j);
+            kind_field = cJSON_GetObjectItemCaseSensitive(field, "kind");
             if (cJSON_IsString(kind_field) && (kind_field->valuestring != NULL) 
                 && (strcmp(kind_field->valuestring, "FieldDefinition") != 0)) continue;
-            cJSON *field_name = cJSON_GetObjectItemCaseSensitive(field, "name");
-            cJSON *field_name_value = cJSON_GetObjectItemCaseSensitive(field_name, "value");
+            field_name = cJSON_GetObjectItemCaseSensitive(field, "name");
+            field_name_value = cJSON_GetObjectItemCaseSensitive(field_name, "value");
 
             // found name of field
             if (cJSON_IsString(field_name_value) && (field_name_value->valuestring != NULL)) {
@@ -187,26 +217,31 @@ void schema_convert(char *json_schema) {
                 strcat(sql_create, " ");
             }
 
-            cJSON *field_type = cJSON_GetObjectItemCaseSensitive(field, "type");
-            cJSON *field_type_type = cJSON_GetObjectItemCaseSensitive(field_type, "type");
-            cJSON *field_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type, "kind");
+            field_type = cJSON_GetObjectItemCaseSensitive(field, "type");
+            field_type_type = cJSON_GetObjectItemCaseSensitive(field_type, "type");
+            field_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type, "kind");
             if (field_type_type_kind != NULL && (cJSON_IsString(field_type_type_kind)) 
                 && (field_type_type_kind->valuestring != NULL) && (strcmp(field_type_type_kind->valuestring, "NamedType") == 0))
             {
                 // NamedType
-                cJSON *field_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type, "name");
-                cJSON *field_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_name, "value");
+                cJSON *field_type_type_name;
+                cJSON *field_type_type_name_value;
+
+                field_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type, "name");
+                field_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_name, "value");
 
                 // found type of field
                 if (cJSON_IsString(field_type_type_name_value) && (field_type_type_name_value->valuestring != NULL)) {
+                    char *convertedType;
+                    
                     elog(LOG, "\t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring);
-                    char *convertedType = getConfigValue(field_type_type_name_value->valuestring, configEntries, numEntries);
+                    convertedType = get_config_value(field_type_type_name_value->valuestring, configEntries, numEntries);
                     if (convertedType == NULL) {
-                        if (isTypeExists(field_type_type_name_value->valuestring)) {
+                        if (is_type_exists(field_type_type_name_value->valuestring)) {
                             strcat(sql_create, "INT ");
 
                             sql_alter_queries[sql_alter_queries_num] = (char*)calloc(QUERY_LENGTH, sizeof(char));
-                            createForeignKey(sql_alter_queries[sql_alter_queries_num], 
+                            create_foreign_key(sql_alter_queries[sql_alter_queries_num], 
                                              type_name_value->valuestring, 
                                              field_type_type_name_value->valuestring, 
                                              field_name_value->valuestring);
@@ -226,21 +261,30 @@ void schema_convert(char *json_schema) {
                 && (field_type_type_kind->valuestring != NULL) && (strcmp(field_type_type_kind->valuestring, "ListType") == 0))
             {
                 // ListType
-                cJSON *field_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type, "type");
-                cJSON *field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type");
-                cJSON *field_type_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "kind");
+                cJSON *field_type_type_type;
+                cJSON *field_type_type_type_type;
+                cJSON *field_type_type_type_type_kind;
+
+                field_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type, "type");
+                field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type");
+                field_type_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "kind");
                 if (field_type_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_type_kind)) 
                     && (strcmp(field_type_type_type_type_kind->valuestring, "NamedType") == 0))
                 {
                     // List of NamedType
-                    cJSON *field_type_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "name");
-                    cJSON *field_type_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type_name, "value");
+                    cJSON *field_type_type_type_type_name;
+                    cJSON *field_type_type_type_type_name_value;
+
+                    field_type_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "name");
+                    field_type_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type_name, "value");
 
                     // found type of field
                     if (field_type_type_type_type_name_value != NULL && (cJSON_IsString(field_type_type_type_type_name_value)) 
                         && (field_type_type_type_type_name_value->valuestring != NULL)) {
+                        char *convertedType;
+                        
                         elog(LOG, "\t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
-                        char *convertedType = getConfigValue(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
+                        convertedType = get_config_value(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
                         if (convertedType == NULL) {
                             elog(LOG, "Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
                         } else {
@@ -254,7 +298,7 @@ void schema_convert(char *json_schema) {
                 }
             }
             
-            cJSON *field_type_kind = cJSON_GetObjectItemCaseSensitive(field_type, "kind");
+            field_type_kind = cJSON_GetObjectItemCaseSensitive(field_type, "kind");
 
             // found kind of field
             if (cJSON_IsString(field_type_kind) && (field_type_kind->valuestring != NULL)) {
@@ -267,11 +311,11 @@ void schema_convert(char *json_schema) {
         elog(LOG, "sql_create query: %s\n", sql_create);
 
         memset(sql_create, 0, QUERY_LENGTH);
-        freeAlterQueries(sql_alter_queries, sql_alter_queries_num);
+        free_alter_queries(sql_alter_queries, sql_alter_queries_num);
     }
 
     free(sql_create);
-    freeConfig(configEntries, numEntries);
+    free_config(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);
 }

@@ -9,9 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
-char *schema_to_json() {
+const char *schema_to_json() {
   const char *error;
+  long fileSize;
+  char* buffer;
+  size_t bytesRead;
+  struct GraphQLAstNode * AST;
+  const char *json;
+
   FILE* file = fopen("../contrib/graphql_proxy/libgraphqlparser/schema.graphql", "rb");
   if (!file) {
       elog(LOG, "Open file failed schema_to_json\n");
@@ -19,19 +24,19 @@ char *schema_to_json() {
   }
 
   fseek(file, 0, SEEK_END);
-  long fileSize = ftell(file);
+  fileSize = ftell(file);
   rewind(file);
 
-  char* buffer = (char*)malloc(fileSize + 1); // +1 для нулевого символа
+  buffer = (char*)malloc(fileSize + 1);
   if (!buffer) {
       elog(LOG, "Malloc failed\n");
       fclose(file);
       return NULL;
   }
 
-  size_t bytesRead = fread(buffer, 1, fileSize, file);
+  bytesRead = fread(buffer, 1, fileSize, file);
   if (bytesRead != fileSize) {
-      elog(LOG, "Ошибка чтения файла\n");
+      elog(LOG, "Read file error\n");
       free(buffer);
       fclose(file);
       return NULL;
@@ -40,16 +45,16 @@ char *schema_to_json() {
   buffer[fileSize] = '\0';
   fclose(file);
 
-  struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)buffer, &error);
+  AST = graphql_parse_string_with_experimental_schema_support((const char *)buffer, &error);
   if (!AST) {
     printf("Parser failed with error: %s\n", error);
-    free((void *)error);  // NOLINT
+    free((void *)error);
     return NULL;
   }
 
-  const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+  json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
 //   puts(json);
-//   free((void *)json);  // NOLINT
+//   free((void *)json);
 
   return json;
 }

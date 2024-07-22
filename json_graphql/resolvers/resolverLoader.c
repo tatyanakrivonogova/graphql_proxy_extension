@@ -7,21 +7,23 @@
 #include <string.h>
 
 char* load_function_body(const char* function_name) {
+    char line[MAX_FUNCTION_SIZE];
+    char *function_body = NULL;
+    size_t function_body_size = 0;
+
     FILE *file = fopen("../contrib/graphql_proxy/json_graphql/resolvers/functions.sql", "r");
     if (file == NULL) {
         elog(LOG, "Failed to open file");
         return NULL;
     }
 
-    char line[MAX_FUNCTION_SIZE];
-    char *function_body = NULL;
-    size_t function_body_size = 0;
-
     while (fgets(line, sizeof(line), file)) {
         char *function_start = strstr(line, function_name);
         if (function_start != NULL) {
+            char *function_end;
+
             function_start += strlen(function_name) + 2; // Skip FunctionName='
-            char *function_end = strchr(function_start, '\'');
+            function_end = strchr(function_start, '\'');
             if (function_end != NULL) {
                 size_t body_len = function_end - function_start;
                 function_body = (char*)realloc(function_body, function_body_size + body_len + 1);

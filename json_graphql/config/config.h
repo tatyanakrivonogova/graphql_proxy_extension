@@ -8,8 +8,8 @@ typedef struct {
     char* value;
 } ConfigEntry;
 
-ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries);
+ConfigEntry* load_config_file(const char* filename, size_t* numEntries);
 
-char* getConfigValue(char *key, ConfigEntry *configEntries, size_t numEntries);
+char* get_config_value(char *key, ConfigEntry *configEntries, size_t numEntries);
 
-void freeConfig(ConfigEntry *configEntries, size_t numEntries);
+void free_config(ConfigEntry *configEntries, size_t numEntries);

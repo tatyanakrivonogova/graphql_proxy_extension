@@ -2,7 +2,11 @@
 
 #include "postgres.h"
 
-ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
+ConfigEntry* load_config_file(const char* filename, size_t* numEntries) {
+    int ch;
+    ConfigEntry* entries;
+    char line[100];
+
     FILE* file = fopen(filename, "r");
     if (!file) {
         elog(LOG, "Open file failed\n");
@@ -10,7 +14,6 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     }
 
     *numEntries = 0;
-    int ch;
     while (EOF != (ch = fgetc(file))) {
         if (ch == '\n') {
             (*numEntries)++;
@@ -18,15 +21,15 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     }
     rewind(file);
 
-    ConfigEntry* entries = (ConfigEntry*)malloc((*numEntries) * sizeof(ConfigEntry));
+    entries = (ConfigEntry*)malloc((*numEntries) * sizeof(ConfigEntry));
     if (!entries) {
         elog(LOG, "Malloc failed\n");
         fclose(file);
         return NULL;
     }
 
-    char line[100];
     for (size_t i = 0; i < *numEntries; i++) {
+        char* separator;
         if (!fgets(line, sizeof(line), file)) {
             elog(LOG, "File read failed\n");
             free(entries);
@@ -36,7 +39,7 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
 
         line[strcspn(line, "\n")] = 0;
 
-        char* separator = strchr(line, '=');
+        separator = strchr(line, '=');
         if (!separator) {
             elog(LOG, "Invalid config parameter: %s\n", line);
             free(entries);
@@ -54,7 +57,7 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     return entries;
 }
 
-char* getConfigValue(char *key, ConfigEntry *configEntries, size_t numEntries) {
+char* get_config_value(char *key, ConfigEntry *configEntries, size_t numEntries) {
     if (configEntries) {
         for (size_t i = 0; i < numEntries; i++)
             if (strcmp(key, configEntries[i].key) == 0) return configEntries[i].value;
@@ -62,7 +65,7 @@ char* getConfigValue(char *key, ConfigEntry *configEntries, size_t numEntries) {
     return NULL;
 }
 
-void freeConfig(ConfigEntry *configEntries, size_t numEntries) {
+void free_config(ConfigEntry *configEntries, size_t numEntries) {
     if (configEntries) {
         for (size_t i = 0; i < numEntries; i++) {
             free(configEntries[i].key);

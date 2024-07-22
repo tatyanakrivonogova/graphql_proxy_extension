@@ -68,6 +68,7 @@ graphql_proxy_main(Datum main_arg) {
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
+    int listen_socket;
     const int val = 1;
 
     struct sockaddr_in sockaddr = {
@@ -79,12 +80,12 @@ graphql_proxy_main(Datum main_arg) {
     socklen_t client_len = sizeof(client_addr);
 
     // get json schema
-    char *json_schema = schema_to_json();
+    const char *json_schema = schema_to_json();
     // parse schema
     schema_convert(json_schema);
 
 
-    int listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
         ereport(ERROR, errmsg("socket(): %s\n", errorbuf));
