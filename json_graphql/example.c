@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include "cJSON.h" 
 #include "config/config.h"
+#include "resolvers/resolverLoader.h"
 
 #define NAME_LENGTH 63
 #define MAX_TYPES_NUMBER 20
@@ -105,6 +106,8 @@ int main() {
     printf("definitions: %p\n", definitions);
 
     types.numCreatedTypes = 0;
+    queries.numCreatedQueries = 0;
+    mutations.numCreatedMutations = 0;
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
         cJSON *definition = cJSON_GetArrayItem(definitions, i);
@@ -116,12 +119,50 @@ int main() {
         cJSON *definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
             if (strcmp(definition_name_value->valuestring, "Query") == 0) {
-                printf("Query\n");
-                // load sql-code for this query
+                // parse query name
+                cJSON *query_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
+                for (int j = 0; j < cJSON_GetArraySize(query_fields); ++j)
+                {
+                    cJSON *query_field = cJSON_GetArrayItem(query_fields, j);
+                    cJSON *query_field_name = cJSON_GetObjectItemCaseSensitive(query_field, "name");
+                    cJSON *query_field_name_value = cJSON_GetObjectItemCaseSensitive(query_field_name, "value");
+                    // printf("Query %s\n", query_field_name_value->valuestring);
+                    if (query_field_name_value != NULL && (cJSON_IsString(query_field_name_value) && (query_field_name_value->valuestring != NULL))) {
+                        strcpy(queries.createdQueries[queries.numCreatedQueries++], query_field_name_value->valuestring);
+                    }
+
+                    // get sql-code for query
+                    char* query_body = load_function_body(query_field_name_value->valuestring);
+                    if (query_body != NULL) {
+                        printf("Query body for %s:\n\t\t%s\n", query_field_name_value->valuestring, query_body);
+                        free(query_body);
+                    } else {
+                        printf("Query %s not found.\n", query_field_name_value->valuestring);
+                    }
+                }
                 continue;
             } else if (strcmp(definition_name_value->valuestring, "Mutation") == 0) {
-                printf("Mutation\n");
                 // load sql-code for this mutation
+                cJSON *mutation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
+                for (int j = 0; j < cJSON_GetArraySize(mutation_fields); ++j)
+                {
+                    cJSON *mutation_field = cJSON_GetArrayItem(mutation_fields, j);
+                    cJSON *mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
+                    cJSON *mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
+                    // printf("Mutation %s\n", mutation_field_name_value->valuestring);
+                    if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
+                        strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
+                    }
+
+                    // get sql-code for mutation
+                    char* mutation_body = load_function_body(mutation_field_name_value->valuestring);
+                    if (mutation_body != NULL) {
+                        printf("Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
+                        free(mutation_body);
+                    } else {
+                        printf("Mutation %s not found.\n", mutation_field_name_value->valuestring);
+                    }
+                }
                 continue;
             }
         }
@@ -247,6 +288,15 @@ int main() {
         memset(sql_create, 0, QUERY_LENGTH);
         freeAlterQueries(sql_alter_queries, sql_alter_queries_num);
     }
+
+
+    // for (size_t i = 0; i < queries.numCreatedQueries; ++i) {
+    //     printf("Query[%ld]: %s\n", i, queries.createdQueries[i]);
+    // }
+
+    // for (size_t i = 0; i < mutations.numCreatedMutations; ++i) {
+    //     printf("Mutation[%ld]: %s\n", i, mutations.createdMutations[i]);
+    // }
 
     free(sql_create);
     freeConfig(configEntries, numEntries);
