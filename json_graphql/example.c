@@ -3,7 +3,9 @@
 #include "config/config.h"
 
 #define NAME_LENGTH 63
-#define MAX_TYPES_NUMBER 100
+#define MAX_TYPES_NUMBER 20
+#define MAX_QUERIES_NUMBER 20
+#define MAX_MUTATIONS_NUMBER 20
 #define QUERY_LENGTH 256
 #define ALTER_QUERIES_NUMBER 10
 
@@ -14,6 +16,20 @@ typedef struct {
     char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
 } Types;
 Types types;
+
+
+typedef struct {
+    size_t numCreatedQueries;
+    char createdQueries[MAX_QUERIES_NUMBER][NAME_LENGTH];
+} Queries;
+Queries queries;
+
+
+typedef struct {
+    size_t numCreatedMutations;
+    char createdMutations[MAX_MUTATIONS_NUMBER][NAME_LENGTH];
+} Mutations;
+Mutations mutations;
 
 
 bool isTypeExists(char* type_name) {
@@ -83,7 +99,6 @@ int main() {
     char *sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num = 0;
-    //char *sql_alter = (char*)calloc(QUERY_LENGTH, sizeof(char));
 
 	// access the JSON data
 	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
@@ -93,9 +108,24 @@ int main() {
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
         cJSON *definition = cJSON_GetArrayItem(definitions, i);
-        cJSON *kind_definition = cJSON_GetObjectItemCaseSensitive(definition, "kind");
-        if (cJSON_IsString(kind_definition) && (kind_definition->valuestring != NULL)
-                && (strcmp(kind_definition->valuestring, "ObjectTypeDefinition") != 0)) continue;
+        cJSON *definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
+        if (definition_kind != NULL && (cJSON_IsString(definition_kind)) && (definition_kind->valuestring != NULL)
+                && (strcmp(definition_kind->valuestring, "ObjectTypeDefinition") != 0)) continue;
+
+        cJSON *definition_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
+        cJSON *definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
+        if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
+            if (strcmp(definition_name_value->valuestring, "Query") == 0) {
+                printf("Query\n");
+                // load sql-code for this query
+                continue;
+            } else if (strcmp(definition_name_value->valuestring, "Mutation") == 0) {
+                printf("Mutation\n");
+                // load sql-code for this mutation
+                continue;
+            }
+        }
+
         
         strcpy(sql_create, "CREATE TABLE ");
         cJSON *type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
@@ -180,7 +210,7 @@ int main() {
                 if (field_type_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_type_kind)) 
                     && (strcmp(field_type_type_type_type_kind->valuestring, "NamedType") == 0))
                 {
-                    // Lost of NNamedType
+                    // List of NamedType
                     cJSON *field_type_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "name");
                     cJSON *field_type_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type_name, "value");
 
@@ -215,12 +245,10 @@ int main() {
         printf("sql_create query: %s\n", sql_create);
 
         memset(sql_create, 0, QUERY_LENGTH);
-        // memset(sql_alter, 0, QUERY_LENGTH);
         freeAlterQueries(sql_alter_queries, sql_alter_queries_num);
     }
 
     free(sql_create);
-    // free(sql_alter);
     freeConfig(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);

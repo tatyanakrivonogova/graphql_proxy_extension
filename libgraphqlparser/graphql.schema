@@ -9,3 +9,11 @@ type Message {
   sender: Person!
   receivers: Person!
 }
+
+type Query {
+  getPerson(id: ID!): Person
+}
+
+type Mutation {
+  createPerson(name: String!): Person
+}
