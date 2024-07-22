@@ -1,5 +1,7 @@
-#include "event_handling.h"
-#include "input_parsing.h"
+#include "io_uring/event_handling.h"
+#include "http/input_parsing.h"
+#include "schema/schema_converting.h"
+#include "libgraphqlparser/schema_to_json.h"
 
 #include "postgres.h"
 #include "fmgr.h"
@@ -75,6 +77,12 @@ graphql_proxy_main(Datum main_arg) {
     };
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
+
+    // get json schema
+    char *json_schema = schema_to_json();
+    // parse schema
+    schema_convert(json_schema);
+
 
     int listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {

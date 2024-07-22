@@ -1,36 +1,11 @@
+#include "schema_converting.h"
+
 #include <stdbool.h>
-#include "cJSON.h" 
-#include "config/config.h"
-#include "resolvers/resolverLoader.h"
 
-#define NAME_LENGTH 63
-#define MAX_TYPES_NUMBER 20
-#define MAX_QUERIES_NUMBER 20
-#define MAX_MUTATIONS_NUMBER 20
-#define QUERY_LENGTH 256
-#define ALTER_QUERIES_NUMBER 10
-
-
-// types which are already converted to PostgresQL
-typedef struct {
-    size_t numCreatedTypes;
-    char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
-} Types;
-Types types;
-
-
-typedef struct {
-    size_t numCreatedQueries;
-    char createdQueries[MAX_QUERIES_NUMBER][NAME_LENGTH];
-} Queries;
-Queries queries;
-
-
-typedef struct {
-    size_t numCreatedMutations;
-    char createdMutations[MAX_MUTATIONS_NUMBER][NAME_LENGTH];
-} Mutations;
-Mutations mutations;
+#include "postgres.h"
+#include "../json_graphql/cJSON.h"
+#include "../json_graphql/config/config.h"
+#include "../json_graphql/resolvers/resolverLoader.h"
 
 
 bool isTypeExists(char* type_name) {
@@ -66,44 +41,47 @@ void freeAlterQueries(char** sql_alter_queries, size_t sql_alter_queries_num) {
     }
 }
 
+void schema_convert(char *json_schema) { 
+    char *sql_create;
+    char *sql_alter_queries[ALTER_QUERIES_NUMBER];
+    size_t sql_alter_queries_num;
 
-int main() { 
-    const char* filename = "config.txt";
+    const char* filename = "../contrib/graphql_proxy/schema/config.txt";
     size_t numEntries;
     ConfigEntry* configEntries = loadConfigFile(filename, &numEntries);
+    if (configEntries == NULL) return;
 
 	// open the file
-	FILE *fp = fopen("data.json", "r");
-	if (fp == NULL) {
-		printf("Error: Unable to open the file.\n");
-        freeConfig(configEntries, numEntries);
-		return 1;
-	}
+	// FILE *fp = fopen("data.json", "r");
+	// if (fp == NULL) {
+	// 	elog(LOG, "Error: Unable to open the file.\n");
+    //     freeConfig(configEntries, numEntries);
+	// 	return;
+	// }
 
 	// read the file contents into a string
-	char buffer[10000];
-	int len = fread(buffer, 1, sizeof(buffer), fp);
-	fclose(fp);
+	// char json_schema[10000];
+	// int len = fread(json_schema, 1, sizeof(json_schema), fp);
+	// fclose(fp);
 
 	// parse the JSON data
-	cJSON *json = cJSON_Parse(buffer);
+	cJSON *json = cJSON_Parse(json_schema);
 	if (json == NULL) {
 		const char *error_ptr = cJSON_GetErrorPtr();
 		if (error_ptr != NULL) {
-			printf("Error: %s %ld\n", error_ptr, error_ptr - buffer);
+			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_schema);
 		}
 		cJSON_Delete(json);
         freeConfig(configEntries, numEntries);
-		return 1;
+		return;
 	}
 
-    char *sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
-    char *sql_alter_queries[ALTER_QUERIES_NUMBER];
-    size_t sql_alter_queries_num = 0;
+    sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
+    sql_alter_queries_num = 0;
 
 	// access the JSON data
 	cJSON *definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
-    printf("definitions: %p\n", definitions);
+    elog(LOG, "definitions: %p\n", definitions);
 
     types.numCreatedTypes = 0;
     queries.numCreatedQueries = 0;
@@ -126,7 +104,7 @@ int main() {
                     cJSON *query_field = cJSON_GetArrayItem(query_fields, j);
                     cJSON *query_field_name = cJSON_GetObjectItemCaseSensitive(query_field, "name");
                     cJSON *query_field_name_value = cJSON_GetObjectItemCaseSensitive(query_field_name, "value");
-                    // printf("Query %s\n", query_field_name_value->valuestring);
+                    // elog(LOG, "Query %s\n", query_field_name_value->valuestring);
                     if (query_field_name_value != NULL && (cJSON_IsString(query_field_name_value) && (query_field_name_value->valuestring != NULL))) {
                         strcpy(queries.createdQueries[queries.numCreatedQueries++], query_field_name_value->valuestring);
                     }
@@ -136,11 +114,11 @@ int main() {
                     if (query_body != NULL) {
                         char *formatted_query = (char*)malloc(QUERY_LENGTH);
                         sprintf(formatted_query, query_body, 10);
-                        printf("Query body for %s:\n\t\t%s\n", query_field_name_value->valuestring, formatted_query);
+                        elog(LOG, "Query body for %s:\n\t\t%s\n", query_field_name_value->valuestring, formatted_query);
                         free(query_body);
                         free(formatted_query);
                     } else {
-                        printf("Query %s not found.\n", query_field_name_value->valuestring);
+                        elog(LOG, "Query %s not found.\n", query_field_name_value->valuestring);
                     }
                 }
                 continue;
@@ -152,7 +130,7 @@ int main() {
                     cJSON *mutation_field = cJSON_GetArrayItem(mutation_fields, j);
                     cJSON *mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
                     cJSON *mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
-                    // printf("Mutation %s\n", mutation_field_name_value->valuestring);
+                    // elog(LOG, "Mutation %s\n", mutation_field_name_value->valuestring);
                     if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
                         strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
                     }
@@ -160,10 +138,10 @@ int main() {
                     // get sql-code for mutation
                     char* mutation_body = load_function_body(mutation_field_name_value->valuestring);
                     if (mutation_body != NULL) {
-                        printf("Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
+                        elog(LOG, "Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
                         free(mutation_body);
                     } else {
-                        printf("Mutation %s not found.\n", mutation_field_name_value->valuestring);
+                        elog(LOG, "Mutation %s not found.\n", mutation_field_name_value->valuestring);
                     }
                 }
                 continue;
@@ -177,7 +155,7 @@ int main() {
 
         // found name of table
         if (cJSON_IsString(type_name_value) && (type_name_value->valuestring != NULL)) {
-            printf("table[%d]: %s\n", i, type_name_value->valuestring);
+            elog(LOG, "table[%d]: %s\n", i, type_name_value->valuestring);
             strcat(sql_create, type_name_value->valuestring);
             strcat(sql_create, "(");
 
@@ -188,7 +166,7 @@ int main() {
 
             // add type to types array
             strcpy(types.createdTypes[types.numCreatedTypes++], type_name_value->valuestring);
-            printf("--- types number: %ld\n", types.numCreatedTypes);
+            elog(LOG, "--- types number: %ld\n", types.numCreatedTypes);
         }
 
         cJSON *fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
@@ -204,7 +182,7 @@ int main() {
 
             // found name of field
             if (cJSON_IsString(field_name_value) && (field_name_value->valuestring != NULL)) {
-                printf("\tfield[%d]: %s\n", j, field_name_value->valuestring);
+                elog(LOG, "\tfield[%d]: %s\n", j, field_name_value->valuestring);
                 strcat(sql_create, field_name_value->valuestring);
                 strcat(sql_create, " ");
             }
@@ -221,7 +199,7 @@ int main() {
 
                 // found type of field
                 if (cJSON_IsString(field_type_type_name_value) && (field_type_type_name_value->valuestring != NULL)) {
-                    printf("\t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring);
+                    elog(LOG, "\t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring);
                     char *convertedType = getConfigValue(field_type_type_name_value->valuestring, configEntries, numEntries);
                     if (convertedType == NULL) {
                         if (isTypeExists(field_type_type_name_value->valuestring)) {
@@ -233,10 +211,10 @@ int main() {
                                              field_type_type_name_value->valuestring, 
                                              field_name_value->valuestring);
 
-                            printf("sql_alter: %s\n", sql_alter_queries[sql_alter_queries_num]);
+                            elog(LOG, "sql_alter: %s\n", sql_alter_queries[sql_alter_queries_num]);
                             ++sql_alter_queries_num;
                         } else {
-                            printf("Type is not found: %s\n", field_type_type_name_value->valuestring);
+                            elog(LOG, "Type is not found: %s\n", field_type_type_name_value->valuestring);
                         }
                     } else {
                         strcat(sql_create, convertedType);
@@ -261,18 +239,18 @@ int main() {
                     // found type of field
                     if (field_type_type_type_type_name_value != NULL && (cJSON_IsString(field_type_type_type_type_name_value)) 
                         && (field_type_type_type_type_name_value->valuestring != NULL)) {
-                        printf("\t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
+                        elog(LOG, "\t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
                         char *convertedType = getConfigValue(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
                         if (convertedType == NULL) {
-                            printf("Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
+                            elog(LOG, "Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
                         } else {
                             strcat(sql_create, convertedType);
                             strcat(sql_create, " ARRAY ");
                         }
                     }
                 } else {
-                    printf("Nested lists is not supported\n");
-                    return 1;
+                    elog(LOG, "Nested lists is not supported\n");
+                    return;
                 }
             }
             
@@ -280,30 +258,20 @@ int main() {
 
             // found kind of field
             if (cJSON_IsString(field_type_kind) && (field_type_kind->valuestring != NULL)) {
-                printf("\t\tfield_kind[%d]: %s\n", j, field_type_kind->valuestring);
+                elog(LOG, "\t\tfield_kind[%d]: %s\n", j, field_type_kind->valuestring);
                 if (strcmp(field_type_kind->valuestring, "NonNullType") == 0)
                     strcat(sql_create, "NOT NULL");
             }
         }
         strcat(sql_create, ");");
-        printf("sql_create query: %s\n", sql_create);
+        elog(LOG, "sql_create query: %s\n", sql_create);
 
         memset(sql_create, 0, QUERY_LENGTH);
         freeAlterQueries(sql_alter_queries, sql_alter_queries_num);
     }
 
-
-    // for (size_t i = 0; i < queries.numCreatedQueries; ++i) {
-    //     printf("Query[%ld]: %s\n", i, queries.createdQueries[i]);
-    // }
-
-    // for (size_t i = 0; i < mutations.numCreatedMutations; ++i) {
-    //     printf("Mutation[%ld]: %s\n", i, mutations.createdMutations[i]);
-    // }
-
     free(sql_create);
     freeConfig(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);
-	return 0;
 }

@@ -2,9 +2,9 @@
 
 #include "../io_uring/event_handling.h"
 #include "http_parser.h"
-#include "libgraphqlparser/c/GraphQLAstNode.h"
-#include "libgraphqlparser/c/GraphQLParser.h"
-#include "libgraphqlparser/c/GraphQLAstToJSON.h"
+#include "../libgraphqlparser/c/GraphQLAstNode.h"
+#include "../libgraphqlparser/c/GraphQLParser.h"
+#include "../libgraphqlparser/c/GraphQLAstToJSON.h"
 
 #include "postgres.h"
 
@@ -42,6 +42,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
+    elog(LOG, "request: %.*s\n", (int)request_len, request);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
     if (err == -1 || err == -2) {
@@ -92,7 +93,8 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         query[query_len] = '\0';
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-        strcpy(bufs[fd], query);
+        strncpy(bufs[fd], query, query_len);
+        // strcpy(bufs[fd], "{\nvideos {\nid\n}\n}");
         *outputSize = query_len;
     }
     //res = write(io_handle->fd, query, (size_t)query_len);

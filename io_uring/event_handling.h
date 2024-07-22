@@ -1,7 +1,7 @@
 #include <liburing.h>
 
-#define MAX_CONNECTIONS      (10)
-#define MAX_MESSAGE_LEN      (512)
+#define MAX_CONNECTIONS      (1000)
+#define MAX_MESSAGE_LEN      (10000)
 
 char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 

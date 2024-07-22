@@ -1,9 +1,11 @@
 #include "config.h"
 
+#include "postgres.h"
+
 ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     FILE* file = fopen(filename, "r");
     if (!file) {
-        fprintf(stderr, "Open file failed\n");
+        elog(LOG, "Open file failed\n");
         return NULL;
     }
 
@@ -18,7 +20,7 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
 
     ConfigEntry* entries = (ConfigEntry*)malloc((*numEntries) * sizeof(ConfigEntry));
     if (!entries) {
-        fprintf(stderr, "Malloc failed\n");
+        elog(LOG, "Malloc failed\n");
         fclose(file);
         return NULL;
     }
@@ -26,7 +28,7 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
     char line[100];
     for (size_t i = 0; i < *numEntries; i++) {
         if (!fgets(line, sizeof(line), file)) {
-            fprintf(stderr, "File read failed\n");
+            elog(LOG, "File read failed\n");
             free(entries);
             fclose(file);
             return NULL;
@@ -36,7 +38,7 @@ ConfigEntry* loadConfigFile(const char* filename, size_t* numEntries) {
 
         char* separator = strchr(line, '=');
         if (!separator) {
-            fprintf(stderr, "Invalid config parameter: %s\n", line);
+            elog(LOG, "Invalid config parameter: %s\n", line);
             free(entries);
             fclose(file);
             return NULL;

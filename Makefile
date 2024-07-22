@@ -6,6 +6,11 @@ OBJS = \
   http/http_parser.o \
   http/input_parsing.o \
   io_uring/event_handling.o \
+  json_graphql/config/config.o \
+  schema/schema_converting.o \
+  json_graphql/cJSON.o \
+  json_graphql/resolvers/resolverLoader.o \
+  libgraphqlparser/schema_to_json.o \
   graphql_proxy.o
 
 EXTENSION = graphql_proxy

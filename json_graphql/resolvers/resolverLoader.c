@@ -1,13 +1,15 @@
 #include "resolverLoader.h"
 
+#include "postgres.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 char* load_function_body(const char* function_name) {
-    FILE *file = fopen("resolvers/functions.sql", "r");
+    FILE *file = fopen("../contrib/graphql_proxy/json_graphql/resolvers/functions.sql", "r");
     if (file == NULL) {
-        perror("Failed to open file");
+        elog(LOG, "Failed to open file");
         return NULL;
     }
 
@@ -39,10 +41,10 @@ char* load_function_body(const char* function_name) {
 //     char* function_body = load_function_body(function_name);
 
 //     if (function_body != NULL) {
-//         printf("Function body for %s:\n%s\n", function_name, function_body);
+//         elog(LOG, "Function body for %s:\n%s\n", function_name, function_body);
 //         free(function_body);
 //     } else {
-//         printf("Function %s not found.\n", function_name);
+//         elog(LOG, "Function %s not found.\n", function_name);
 //     }
 
 //     return 0;
