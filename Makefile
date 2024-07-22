@@ -5,12 +5,13 @@ OBJS = \
   $(WIN32RES) \
   coro.o \
   http_parser.o \
-  graphql_proxy.o
+  graphql_proxy.o \
+  map.o
 
 EXTENSION = graphql_proxy
 DATA = graphql_proxy--1.0.sql
 
-SHLIB_LINK += -lev -luring -fPIC -L . -lgraphqlparser
+SHLIB_LINK += -lev -luring -lpq -fPIC -L . -lgraphqlparser
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config

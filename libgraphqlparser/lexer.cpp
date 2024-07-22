@@ -1,6 +1,6 @@
-#line 2 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 2 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 
-#line 4 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 4 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 
 #define  YY_INT_ALIGNED short int
 
@@ -612,10 +612,10 @@ static void escape(char c, char *buf);
 
 static std::string clean_up_block_string(const std::string &str);
 
-#line 616 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 616 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 #define YY_NO_INPUT 1
 
-#line 619 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 619 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 
 #define INITIAL 0
 #define STRING_STATE 1
@@ -907,7 +907,7 @@ YY_DECL
   yyextra->loc.step();
 
 
-#line 911 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 911 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1351,7 +1351,7 @@ YY_RULE_SETUP
 #line 205 "lexer.lpp"
 ECHO;
 	YY_BREAK
-#line 1355 "/home/tanec/parser_graphql/libgraphqlparser/lexer.cpp"
+#line 1355 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.cpp"
 case YY_STATE_EOF(C_COMMENT_STATE):
 case YY_STATE_EOF(LINE_COMMENT_STATE):
 	yyterminate();
