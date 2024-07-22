@@ -2,9 +2,9 @@
 #define yyHEADER_H 1
 #define yyIN_HEADER 1
 
-#line 6 "/home/tanec/parser_graphql/libgraphqlparser/lexer.h"
+#line 6 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.h"
 
-#line 8 "/home/tanec/parser_graphql/libgraphqlparser/lexer.h"
+#line 8 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -523,6 +523,6 @@ extern int yylex \
 #line 205 "lexer.lpp"
 
 
-#line 527 "/home/tanec/parser_graphql/libgraphqlparser/lexer.h"
+#line 527 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */
