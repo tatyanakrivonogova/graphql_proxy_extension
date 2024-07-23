@@ -101,8 +101,8 @@ graphql_proxy_main(Datum main_arg) {
 
     while (true)
     {
-        struct io_uring_cqe *cqe;
         int ret;
+        struct io_uring_cqe *cqe;
         struct io_uring_cqe *cqes[DEFAULT_BACKLOG_SIZE];
 
         io_uring_submit(&ring);
@@ -121,14 +121,15 @@ graphql_proxy_main(Datum main_arg) {
 
             if (type == ACCEPT) {
                 int sock_conn_fd = cqe->res;
-                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN);
                 add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
+                add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN);
             } else if (type == READ) {
                 int bytes_read = cqe->res;
                 if (bytes_read <= 0) {
                     elog(LOG, "-------socket shutdown--------\n");
-                    shutdown(user_data->fd, SHUT_RDWR);
-                    free_conn_index(user_data->fd); 
+                    socket_close(user_data, SHUT_RDWR);
+                    // shutdown(user_data->fd, SHUT_RDWR);
+                    // free_conn_index(user_data->fd); 
                 } else {
                     //parse input
                     int outputSize;

@@ -88,3 +88,9 @@ add_socket_write(struct io_uring *ring, int fd, size_t size) {
 
     io_uring_sqe_set_data(sqe, conn_i);
 }
+
+void
+socket_close(conn_info *user_data, int how) {
+    shutdown(user_data->fd, SHUT_RDWR);
+    free_conn_index(user_data->fd); 
+}

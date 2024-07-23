@@ -1,4 +1,5 @@
 #include <liburing.h>
+#include "postgresql/libpq-fe.h"
 
 #define MAX_CONNECTIONS      (10)
 #define MAX_MESSAGE_LEN      (512)
@@ -26,3 +27,6 @@ add_socket_read(struct io_uring *ring, int fd, size_t size);
 
 void
 add_socket_write(struct io_uring *ring, int fd, size_t size);
+
+void
+socket_close(conn_info *user_data, int how);
