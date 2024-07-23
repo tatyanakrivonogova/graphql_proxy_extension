@@ -1,12 +1,10 @@
 #include "postgres_connect.h"
 
 #include "postgres.h"
-// #include <libpq/libpq.h>
-// #include <libpq/libpq-fs.h>
 
 void 
 test_connect(void) {
-    char *query = "INSERT INTO table1 values(501);";
+    char *query = "INSERT INTO table1 values(500);";
     char *conn_info = "dbname=postgres host=localhost port=5432";
     int rows, cols;
     PGconn *conn;
@@ -22,8 +20,8 @@ test_connect(void) {
     rows = PQntuples(res);
     cols = PQnfields(res);
 
-    elog(LOG, "Number of rows: %d\n", rows);
-    elog(LOG, "Number of columns: %d\n", cols);
+    elog(LOG, "Number of rows: %d", rows);
+    elog(LOG, "Number of columns: %d", cols);
     // Print the column names
     for (int i = 0; i < cols; i++) {
         elog(LOG, "%s\t", PQfname(res, i));
@@ -53,10 +51,10 @@ create_connection(PGconn** conn, char* conn_info) {
         return 0;
     }
     // We have successfully established a connection to the database server
-    elog(LOG, "Connection Established\n");
-    elog(LOG, "Port: %s\n", PQport(*conn));
-    elog(LOG, "Host: %s\n", PQhost(*conn));
-    elog(LOG, "DBName: %s\n", PQdb(*conn));
+    elog(LOG, "Connection Established");
+    elog(LOG, "Port: %s", PQport(*conn));
+    elog(LOG, "Host: %s", PQhost(*conn));
+    elog(LOG, "DBName: %s", PQdb(*conn));
     return 1;
 }
 

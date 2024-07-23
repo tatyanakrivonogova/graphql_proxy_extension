@@ -30,7 +30,6 @@ reserve_done:
 
 int
 get_conn_index(int fd, int *index) {
-    elog(LOG, "index ptr in func: %p", index);
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (conns[i].fd == fd) {
             elog(LOG, "get done, index: %d", i);
@@ -38,7 +37,7 @@ get_conn_index(int fd, int *index) {
             return 1;
         }
     }
-    elog(LOG, "get is not done");
+    elog(LOG, "get did not find index");
     return 0;
 }
 

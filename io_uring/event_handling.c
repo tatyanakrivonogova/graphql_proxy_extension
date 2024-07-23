@@ -1,6 +1,7 @@
 #include "event_handling.h"
 
 #include "postgres.h"
+#include "multiple_user_access.h"
 
 #include <liburing.h>
 
@@ -21,17 +22,15 @@ add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_
 
     int index = 0;
     int res; 
-    elog(LOG, "accept index ptr: %p", &index);
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {
-        elog(LOG, "can not find right index, try to reserve");
+        elog(LOG, "index is not reserved, try to reserve");
         reserve_conn_structure(fd);
         get_conn_index(fd, &index);
     }
     printConns();
     conn_i = &conns[index];
-    // conn_i->fd = fd;
     conn_i->type = ACCEPT;
 
     io_uring_sqe_set_data(sqe, conn_i);
@@ -48,19 +47,16 @@ add_socket_read(struct io_uring *ring, int fd, size_t size) {
     elog(LOG, "Read buf from fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
 
     int index = 0;
-    int res; 
-    elog(LOG, "read index ptr: %p", &index);
+    int res;
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {
-        elog(LOG, "can not find right index, try to reserve");
+        elog(LOG, "can not find reserved index, try to reserve");
         reserve_conn_structure(fd);
         get_conn_index(fd, &index);
     }
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
-    // printConns();
     conn_i = &conns[index];
-    // conn_i->fd = fd;
     conn_i->type = READ;
 
     io_uring_sqe_set_data(sqe, conn_i);
@@ -79,7 +75,6 @@ add_socket_write(struct io_uring *ring, int fd, size_t size) {
 
     int index = 0;
     int res; 
-    elog(LOG, "write index ptr: %p", &index);
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {

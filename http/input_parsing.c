@@ -1,6 +1,7 @@
 #include "input_parsing.h"
 
 #include "io_uring/event_handling.h"
+#include "postgres_connect/postgres_connect.h"
 #include "http_parser.h"
 #include "libgraphqlparser/c/GraphQLAstNode.h"
 #include "libgraphqlparser/c/GraphQLParser.h"
@@ -10,8 +11,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-
-// void test_connect(void);
 
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
@@ -36,13 +35,12 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
 
     *outputSize = 0;
 
-     //example connection
+    //example connection
     test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
-    // elog(LOG, "aaaaaaaaaaaaaaaaaaaaaaa");
     if (err == -1 || err == -2) {
         // printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
         *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
@@ -95,7 +93,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         *outputSize = query_len;
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
-    elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
+    // elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
     struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
     if (!AST) {

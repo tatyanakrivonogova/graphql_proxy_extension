@@ -22,14 +22,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <netinet/in.h>
-#include <liburing.h>
-
-#include "executor/spi.h"
-
-#include <libpq/libpq.h>
-#include <libpq/libpq-fs.h>
-#include <postgresql/libpq-fe.h>
-
 
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
@@ -38,10 +30,6 @@
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
-int create_connection(PGconn** conn, char* conn_info);
-void close_connection(PGconn** conn);
-int exec_query(PGconn** conn, char *query, PGresult** res);
-void test_connect(void);
 
 void
 _PG_init(void) {
@@ -138,7 +126,7 @@ graphql_proxy_main(Datum main_arg) {
             } else if (type == READ) {
                 int bytes_read = cqe->res;
                 if (bytes_read <= 0) {
-                    elog(LOG, "-------shutdown--------\n");
+                    elog(LOG, "-------socket shutdown--------\n");
                     shutdown(user_data->fd, SHUT_RDWR);
                     free_conn_index(user_data->fd); 
                 } else {
