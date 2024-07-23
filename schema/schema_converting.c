@@ -59,16 +59,16 @@ hashmap *schema_convert(const char *json_schema) {
     hashmap *resolvers = hashmap_create();
 	if (resolvers == NULL) {
 		printf("schema_convert(): failed while hashmap init\n");
-		return;
+		return NULL;
 	}
 
     if (!create_connection(&conn, conn_info)) {
-        return;
+        return NULL;
     }
 
     filename = "../contrib/graphql_proxy/schema/config.txt";
     configEntries = load_config_file(filename, &numEntries);
-    if (configEntries == NULL) return;
+    if (configEntries == NULL) return NULL;
 
 	// parse the JSON data
 	json = cJSON_Parse(json_schema);
@@ -79,7 +79,7 @@ hashmap *schema_convert(const char *json_schema) {
 		}
 		cJSON_Delete(json);
         free_config(configEntries, numEntries);
-		return;
+		return NULL;
 	}
 
     sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
@@ -158,13 +158,80 @@ hashmap *schema_convert(const char *json_schema) {
                     cJSON *mutation_field_name;
                     cJSON *mutation_field_name_value;
                     char* mutation_body;
+                    cJSON *mutation_field_arguments;
 
                     mutation_field = cJSON_GetArrayItem(mutation_fields, j);
                     mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
                     mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
                     // elog(LOG, "Mutation %s\n", mutation_field_name_value->valuestring);
                     if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
-                        strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
+                        // strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
+                        mutations.createdMutations[mutations.numCreatedMutations] = (Mutation*)malloc(sizeof(Mutation));
+                        if (mutations.createdMutations[mutations.numCreatedMutations] == NULL) {
+                            elog(LOG, "Mutation struct malloc failed\n");
+                            continue;
+                        }
+                        strcpy(mutations.createdMutations[mutations.numCreatedMutations]->mutationName, mutation_field_name_value->valuestring);
+                        mutation_field_arguments = cJSON_GetObjectItemCaseSensitive(mutation_field, "arguments");
+                        mutations.createdMutations[mutations.numCreatedMutations]->argumentsNumber = cJSON_GetArraySize(mutation_field_arguments);
+                        for (size_t k = 0; k < mutations.createdMutations[mutations.numCreatedMutations]->argumentsNumber; ++k) {
+                            Argument *currentArg;
+                            cJSON *argument;
+                            cJSON *argument_name;
+                            cJSON *argument_name_value;
+                            cJSON *argument_type;
+                            cJSON *argument_type_kind;
+                            cJSON *argument_type_type;
+                            cJSON *argument_type_type_name;
+                            cJSON *argument_type_type_name_value;
+
+                            // create struct for new argument
+                            currentArg = (Argument*)malloc(sizeof(Argument));
+                            if (currentArg == NULL) {
+                                elog(LOG, "Argument malloc failed\n");
+                            }
+                            // parse argument name
+                            argument = cJSON_GetArrayItem(mutation_field_arguments, k);
+                            argument_name = cJSON_GetObjectItemCaseSensitive(argument, "name");
+                            argument_name_value = cJSON_GetObjectItemCaseSensitive(argument_name, "value");
+                            if (argument_name_value != NULL && (cJSON_IsString(argument_name_value)) && (argument_name_value->valuestring != NULL)) {
+                                strcpy(currentArg->argName, argument_name_value->valuestring);
+                            } else {
+                                free(currentArg);
+                                continue;
+                            }
+
+                            // parse argumentkind
+                            argument_type = cJSON_GetObjectItemCaseSensitive(argument, "type");
+                            argument_type_kind = cJSON_GetObjectItemCaseSensitive(argument_type, "kind");
+                            if (argument_type_kind != NULL && (cJSON_IsString(argument_type_kind)) && (argument_type_kind->valuestring != NULL)) {
+                                if (strcmp(argument_type_kind->valuestring, "NonNullType") == 0) {
+                                    currentArg->nonNullType = true;
+                                } else {
+                                    currentArg->nonNullType = false;
+                                }
+                            } else {
+                                free(currentArg);
+                                continue;
+                            }
+
+                            // parse argument type
+                            argument_type_type = cJSON_GetObjectItemCaseSensitive(argument_type, "type");
+                            argument_type_type_name = cJSON_GetObjectItemCaseSensitive(argument_type_type, "name");
+                            argument_type_type_name_value = cJSON_GetObjectItemCaseSensitive(argument_type_type_name, "value");
+
+                            if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) && (argument_type_type_name_value->valuestring != NULL)) {
+                                strcpy(currentArg->argType, argument_type_type_name_value->valuestring);
+                            } else {
+                                free(currentArg);
+                                continue;
+                            }
+
+                            elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType);
+                            // add argument into mutation struct
+                            mutations.createdMutations[mutations.numCreatedMutations]->arguments[k] = currentArg;
+                        }
+                        mutations.numCreatedMutations++;
                     }
 
                     // get sql-code for mutation
@@ -309,7 +376,7 @@ hashmap *schema_convert(const char *json_schema) {
                     }
                 } else {
                     elog(LOG, "Nested lists is not supported\n");
-                    return;
+                    return NULL;
                 }
             }
             

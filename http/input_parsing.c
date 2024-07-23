@@ -106,7 +106,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         strncpy(bufs[fd], response, response_len);
         *outputSize = response_len;
     }
-    elog(LOG, "buffer after query pars: %.*s\n", query_len, (char*)&bufs[fd]);
+    elog(LOG, "buffer after query pars: %.*s\n", query_len, query);
 
     if (query_len != 0) {
         AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);

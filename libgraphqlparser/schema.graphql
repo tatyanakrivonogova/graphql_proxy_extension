@@ -17,4 +17,5 @@ type Query {
 
 type Mutation {
   createPerson(name: String!): Person
+  updatePerson(id: ID!, name: String!): Person
 }
