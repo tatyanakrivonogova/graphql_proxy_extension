@@ -1,6 +1,4 @@
 
-
-
 int
 reserve_conn_structure(int fd);
 
