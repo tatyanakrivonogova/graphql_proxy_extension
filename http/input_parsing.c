@@ -11,8 +11,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-void test_connect(void);
-
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     const char *method;
@@ -39,7 +37,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     *outputSize = 0;
 
      //example connection
-    test_connect();
+    // test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
     elog(LOG, "request: %.*s\n", (int)request_len, request);
@@ -49,8 +47,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
         *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
         strcpy((char*)&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
-        // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
-        //             sizeof("Failed while parse HTTP resuest. Change and try again\n"));
         goto write_fail_response;
     }
 
@@ -94,24 +90,20 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
         strncpy(bufs[fd], query, query_len);
-        // strcpy(bufs[fd], "{\nvideos {\nid\n}\n}");
         *outputSize = query_len;
     }
-    //res = write(io_handle->fd, query, (size_t)query_len);
     elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
     AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
     if (!AST) {
         printf("Parser failed with error: %s\n", error);
-        free((void *)error);  // NOLINT
+        free((void *)error);
         goto free_memory;
     }
 
     json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
     elog(LOG, "parsed json schema: %s\n", json);
     free((void *)json);
-
-    // close connection after completing request
 
 free_memory:
     if (query) free(query);

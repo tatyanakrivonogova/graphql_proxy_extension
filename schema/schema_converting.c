@@ -7,6 +7,18 @@
 #include "../json_graphql/config/config.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
 
+#include "executor/spi.h"
+
+#include <libpq/libpq.h>
+#include <libpq/libpq-fs.h>
+#include <postgresql/libpq-fe.h>
+
+
+int create_connection(PGconn** conn, char* conn_info);
+void close_connection(PGconn** conn);
+int exec_query(PGconn** conn, char *query, PGresult** res);
+void handle_query(PGresult* res);
+
 
 bool is_type_exists(char* type_name) {
     for (size_t i = 0; i < types.numCreatedTypes; ++i) {
@@ -20,7 +32,7 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
     // query for adding foreign key
     strcat(sql_alter, "ALTER TABLE ");
     strcat(sql_alter, table_name);
-    strcat(sql_alter, " ADD CONSTRAINT fk_");
+    strcat(sql_alter, " ADD CONSTRAINT IF NOT EXISTS fk_");
     strcat(sql_alter, table_name);
     strcat(sql_alter, "_");
     strcat(sql_alter, another_table_name);
@@ -41,31 +53,90 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
     }
 }
 
-void schema_convert(const char *json_schema) { 
-    cJSON *json;
-    cJSON *definitions;
+int 
+create_connection(PGconn** conn, char* conn_info) {
+    *conn = PQconnectdb(conn_info);
 
+    if (PQstatus(*conn) != CONNECTION_OK) {
+        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*conn));
+        PQfinish(*conn);
+        return 0;
+    }
+    // We have successfully established a connection to the database server
+    elog(LOG, "Connection Established\n");
+    elog(LOG, "Port: %s\n", PQport(*conn));
+    elog(LOG, "Host: %s\n", PQhost(*conn));
+    elog(LOG, "DBName: %s\n", PQdb(*conn));
+    return 1;
+}
+
+void
+close_connection(PGconn** conn) {
+    PQfinish(*conn);
+    elog(LOG, "Libpq connection closed");
+}
+
+int
+exec_query(PGconn** conn, char *query, PGresult** res) {
+    ExecStatusType resStatus;
+    elog(LOG, "Start execution query: %s", query);
+    *res = PQexec(*conn, query);
+    resStatus = PQresultStatus(*res);
+    // convert status to string and log
+    elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
+
+    //PGRES_COMMAN_OK - Successful completion of a command returning no data
+    //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
+    if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
+        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*conn));
+        PQclear(*res);
+        return 0;
+    }
+    return 1;
+}
+
+void handle_query(PGresult* res) {
+    int rows, cols;
+
+    rows = PQntuples(res);
+    cols = PQnfields(res);
+
+    elog(LOG, "Number of rows: %d\n", rows);
+    elog(LOG, "Number of columns: %d\n", cols);
+    // Print the column names
+    for (int i = 0; i < cols; i++) {
+        elog(LOG, "%s\t", PQfname(res, i));
+    }
+
+    // Print all the rows and columns
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+        // Print the column value
+            elog(LOG, "%s\t", PQgetvalue(res, i, j));
+        }
+        elog(LOG, "-------------------------------------------------------");
+    }
+}
+
+void schema_convert(const char *json_schema) {
     char *sql_create;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num;
-
-    const char* filename = "../contrib/graphql_proxy/schema/config.txt";
+    const char* filename;
     size_t numEntries;
-    ConfigEntry* configEntries = load_config_file(filename, &numEntries);
+    ConfigEntry* configEntries;
+    cJSON *json;
+    cJSON *definitions;
+    char *conn_info = "dbname=postgres host=localhost port=5432";
+    PGconn *conn;
+    PGresult *res;
+    if (!create_connection(&conn, conn_info)) {
+        return;
+    }
+
+    filename = "../contrib/graphql_proxy/schema/config.txt";
+    configEntries = load_config_file(filename, &numEntries);
     if (configEntries == NULL) return;
-
-	// open the file
-	// FILE *fp = fopen("data.json", "r");
-	// if (fp == NULL) {
-	// 	elog(LOG, "Error: Unable to open the file.\n");
-    //     freeConfig(configEntries, numEntries);
-	// 	return;
-	// }
-
-	// read the file contents into a string
-	// char json_schema[10000];
-	// int len = fread(json_schema, 1, sizeof(json_schema), fp);
-	// fclose(fp);
 
 	// parse the JSON data
 	json = cJSON_Parse(json_schema);
@@ -170,7 +241,7 @@ void schema_convert(const char *json_schema) {
         }
 
         
-        strcpy(sql_create, "CREATE TABLE ");
+        strcpy(sql_create, "CREATE TABLE IF NOT EXISTS ");
         type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
         type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value");
 
@@ -310,6 +381,16 @@ void schema_convert(const char *json_schema) {
         strcat(sql_create, ");");
         elog(LOG, "sql_create query: %s\n", sql_create);
 
+        // execute create table query
+        exec_query(&conn, sql_create, &res);
+        handle_query(res);
+        
+
+        for (size_t i = 0; i < sql_alter_queries_num; ++i) {
+            exec_query(&conn, sql_create, &res);
+            handle_query(res);
+        }
+
         memset(sql_create, 0, QUERY_LENGTH);
         free_alter_queries(sql_alter_queries, sql_alter_queries_num);
     }
@@ -318,4 +399,8 @@ void schema_convert(const char *json_schema) {
     free_config(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);
+
+    //clear used resources
+    PQclear(res);
+    close_connection(&conn);
 }
