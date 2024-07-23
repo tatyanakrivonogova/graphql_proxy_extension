@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "../hashmap/map.h"
+
 #define NAME_LENGTH 63
 #define MAX_TYPES_NUMBER 20
 #define MAX_QUERIES_NUMBER 20
@@ -36,7 +38,7 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
 
 void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num);
 
-void schema_convert(const char *json_schema);
+hashmap *schema_convert(const char *json_schema);
 
 // int create_connection(PGconn** conn, char* conn_info);
 

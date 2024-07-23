@@ -2,6 +2,7 @@
 #include "http/input_parsing.h"
 #include "schema/schema_converting.h"
 #include "libgraphqlparser/schema_to_json.h"
+#include "hashmap/map.h"
 
 #include "postgres.h"
 #include "fmgr.h"
@@ -38,10 +39,10 @@
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
-int create_connection(PGconn** conn, char* conn_info);
-void close_connection(PGconn** conn);
-int exec_query(PGconn** conn, char *query, PGresult** res);
-void test_connect(void);
+// int create_connection(PGconn** conn, char* conn_info);
+// void close_connection(PGconn** conn);
+// int exec_query(PGconn** conn, char *query, PGresult** res);
+// void test_connect(void);
 
 void
 _PG_init(void) {
@@ -63,6 +64,12 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
+int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
+{
+	elog(LOG, "Entry \"%s\": %s\n", (char *)key, (char *)value);
+    return 0;
+}
+
 void
 graphql_proxy_main(Datum main_arg) {
     struct io_uring_params params;
@@ -70,6 +77,7 @@ graphql_proxy_main(Datum main_arg) {
     int cqe_count;
     int listen_socket;
     const int val = 1;
+    int error;
 
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
@@ -82,7 +90,13 @@ graphql_proxy_main(Datum main_arg) {
     // get json schema
     const char *json_schema = schema_to_json();
     // parse schema
-    schema_convert(json_schema);
+    hashmap *resolvers = schema_convert(json_schema);
+
+    error = hashmap_iterate(resolvers, print_entry, NULL);
+    if (error == -1)
+        elog(LOG, "!!!---------hashmap_iterate error\n");
+
+    hashmap_free(resolvers);
 
 
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -168,83 +182,3 @@ socket_bind_fail:
     close(listen_socket);
     return;
 }
-
-// int 
-// create_connection(PGconn** conn, char* conn_info) {
-//     *conn = PQconnectdb(conn_info);
-
-//     if (PQstatus(*conn) != CONNECTION_OK) {
-//         elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*conn));
-//         PQfinish(*conn);
-//         return 0;
-//     }
-//     // We have successfully established a connection to the database server
-//     elog(LOG, "Connection Established\n");
-//     elog(LOG, "Port: %s\n", PQport(*conn));
-//     elog(LOG, "Host: %s\n", PQhost(*conn));
-//     elog(LOG, "DBName: %s\n", PQdb(*conn));
-//     return 1;
-// }
-
-// void
-// close_connection(PGconn** conn) {
-//     PQfinish(*conn);
-//     elog(LOG, "Libpq connection closed");
-// }
-
-// int
-// exec_query(PGconn** conn, char *query, PGresult** res) {
-//     ExecStatusType resStatus;
-//     elog(LOG, "Start execution query: %s", query);
-//     *res = PQexec(*conn, query);
-//     resStatus = PQresultStatus(*res);
-//     // convert status to string and log
-//     elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
-
-//     //PGRES_COMMAN_OK - Successful completion of a command returning no data
-//     //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
-//     if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
-//         elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*conn));
-//         PQclear(*res);
-//         return 0;
-//     }
-//     return 1;
-// }
-
-// void test_connect(void) {
-//     char *query = "CREATE TABLE Person(pk_Person SERIAL PRIMARY KEY, id UUID NOT NULL, name TEXT ARRAY NOT NULL);";
-//     char *conn_info = "dbname=postgres host=localhost port=5432";
-//     int rows, cols;
-//     PGconn *conn;
-//     PGresult *res;
-//     if (!create_connection(&conn, conn_info)) {
-//         return;
-//     }
-
-//     // char* query = "SELECT * FROM table1;";
-//     //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
-//     // exec_query(&conn, "SELECT * FROM table1;", &res);
-//     exec_query(&conn, query, &res);
-//     rows = PQntuples(res);
-//     cols = PQnfields(res);
-
-//     elog(LOG, "Number of rows: %d\n", rows);
-//     elog(LOG, "Number of columns: %d\n", cols);
-//     // Print the column names
-//     for (int i = 0; i < cols; i++) {
-//         elog(LOG, "%s\t", PQfname(res, i));
-//     }
-
-//     // Print all the rows and columns
-//     for (int i = 0; i < rows; i++) {
-//         for (int j = 0; j < cols; j++) {
-//         // Print the column value
-//             elog(LOG, "%s\t", PQgetvalue(res, i, j));
-//         }
-//         elog(LOG, "-------------------------------------------------------");
-//     }
-
-//     //clear used resources
-//     PQclear(res);
-//     close_connection(&conn);
-// }

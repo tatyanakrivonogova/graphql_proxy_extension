@@ -6,18 +6,8 @@
 #include "../json_graphql/cJSON.h"
 #include "../json_graphql/config/config.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
-
-#include "executor/spi.h"
-
-#include <libpq/libpq.h>
-#include <libpq/libpq-fs.h>
-#include <postgresql/libpq-fe.h>
-
-
-int create_connection(PGconn** conn, char* conn_info);
-void close_connection(PGconn** conn);
-int exec_query(PGconn** conn, char *query, PGresult** res);
-void handle_query(PGresult* res);
+#include "../libpq/query_executing.c"
+#include "../hashmap/map.h"
 
 
 bool is_type_exists(char* type_name) {
@@ -53,72 +43,7 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
     }
 }
 
-int 
-create_connection(PGconn** conn, char* conn_info) {
-    *conn = PQconnectdb(conn_info);
-
-    if (PQstatus(*conn) != CONNECTION_OK) {
-        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*conn));
-        PQfinish(*conn);
-        return 0;
-    }
-    // We have successfully established a connection to the database server
-    elog(LOG, "Connection Established\n");
-    elog(LOG, "Port: %s\n", PQport(*conn));
-    elog(LOG, "Host: %s\n", PQhost(*conn));
-    elog(LOG, "DBName: %s\n", PQdb(*conn));
-    return 1;
-}
-
-void
-close_connection(PGconn** conn) {
-    PQfinish(*conn);
-    elog(LOG, "Libpq connection closed");
-}
-
-int
-exec_query(PGconn** conn, char *query, PGresult** res) {
-    ExecStatusType resStatus;
-    elog(LOG, "Start execution query: %s", query);
-    *res = PQexec(*conn, query);
-    resStatus = PQresultStatus(*res);
-    // convert status to string and log
-    elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
-
-    //PGRES_COMMAN_OK - Successful completion of a command returning no data
-    //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
-    if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
-        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*conn));
-        PQclear(*res);
-        return 0;
-    }
-    return 1;
-}
-
-void handle_query(PGresult* res) {
-    int rows, cols;
-
-    rows = PQntuples(res);
-    cols = PQnfields(res);
-
-    elog(LOG, "Number of rows: %d\n", rows);
-    elog(LOG, "Number of columns: %d\n", cols);
-    // Print the column names
-    for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(res, i));
-    }
-
-    // Print all the rows and columns
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-        // Print the column value
-            elog(LOG, "%s\t", PQgetvalue(res, i, j));
-        }
-        elog(LOG, "-------------------------------------------------------");
-    }
-}
-
-void schema_convert(const char *json_schema) {
+hashmap *schema_convert(const char *json_schema) {
     char *sql_create;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num;
@@ -130,6 +55,13 @@ void schema_convert(const char *json_schema) {
     char *conn_info = "dbname=postgres host=localhost port=5432";
     PGconn *conn;
     PGresult *res;
+
+    hashmap *resolvers = hashmap_create();
+	if (resolvers == NULL) {
+		printf("schema_convert(): failed while hashmap init\n");
+		return;
+	}
+
     if (!create_connection(&conn, conn_info)) {
         return;
     }
@@ -183,6 +115,7 @@ void schema_convert(const char *json_schema) {
                 cJSON *query_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
                 for (int j = 0; j < cJSON_GetArraySize(query_fields); ++j)
                 {
+                    int error;
                     cJSON *query_field;
                     cJSON *query_field_name;
                     cJSON *query_field_name_value;
@@ -199,10 +132,16 @@ void schema_convert(const char *json_schema) {
                     // get sql-code for query
                     query_body = load_function_body(query_field_name_value->valuestring);
                     if (query_body != NULL) {
-                        char *formatted_query = (char*)malloc(QUERY_LENGTH);
+                        char *formatted_query;
+
+                        error = hashmap_set(resolvers, strdup(query_field_name_value->valuestring), strlen(query_field_name_value->valuestring), (uintptr_t)query_body);
+                        if (error == -1)
+                            elog(LOG, "hashmap_set error for query %s: %p\n", query_field_name_value->valuestring, query_body);
+
+                        formatted_query = (char*)malloc(QUERY_LENGTH);
                         sprintf(formatted_query, query_body, 10);
                         elog(LOG, "Query body for %s:\n\t\t%s\n", query_field_name_value->valuestring, formatted_query);
-                        free(query_body);
+                        // free(query_body);
                         free(formatted_query);
                     } else {
                         elog(LOG, "Query %s not found.\n", query_field_name_value->valuestring);
@@ -214,6 +153,7 @@ void schema_convert(const char *json_schema) {
                 cJSON *mutation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
                 for (int j = 0; j < cJSON_GetArraySize(mutation_fields); ++j)
                 {
+                    int error;
                     cJSON *mutation_field;
                     cJSON *mutation_field_name;
                     cJSON *mutation_field_name_value;
@@ -229,9 +169,13 @@ void schema_convert(const char *json_schema) {
 
                     // get sql-code for mutation
                     mutation_body = load_function_body(mutation_field_name_value->valuestring);
+                    error = hashmap_set(resolvers, strdup(mutation_field_name_value->valuestring), strlen(mutation_field_name_value->valuestring), (uintptr_t)mutation_body);
+                        if (error == -1)
+                            elog(LOG, "hashmap_set error for mutation %s: %p\n", mutation_field_name_value->valuestring, mutation_body);
+
                     if (mutation_body != NULL) {
                         elog(LOG, "Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
-                        free(mutation_body);
+                        // free(mutation_body);
                     } else {
                         elog(LOG, "Mutation %s not found.\n", mutation_field_name_value->valuestring);
                     }
@@ -403,4 +347,6 @@ void schema_convert(const char *json_schema) {
     //clear used resources
     PQclear(res);
     close_connection(&conn);
+
+    return resolvers;
 }

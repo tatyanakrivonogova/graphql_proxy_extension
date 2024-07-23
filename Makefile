@@ -3,6 +3,7 @@
 MODULE_big = graphql_proxy
 OBJS = \
   $(WIN32RES) \
+  hashmap/map.o \
   http/http_parser.o \
   http/input_parsing.o \
   io_uring/event_handling.o \
