@@ -3,14 +3,14 @@
 #define MAX_CONNECTIONS      (10)
 #define MAX_MESSAGE_LEN      (512)
 
-char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
 
 typedef struct conn_info {
     int fd;
     unsigned type;
 } conn_info;
 
-conn_info conns[MAX_CONNECTIONS];
+extern char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
+extern struct conn_info conns[MAX_CONNECTIONS];
 
 enum {
     ACCEPT,

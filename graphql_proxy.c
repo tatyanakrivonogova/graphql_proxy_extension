@@ -1,5 +1,6 @@
-#include "event_handling.h"
-#include "input_parsing.h"
+#include "io_uring/event_handling.h"
+#include "http/input_parsing.h"
+#include "io_uring/multiple_user_access.h"
 
 #include "postgres.h"
 #include "fmgr.h"
@@ -61,67 +62,6 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
-int
-reserve_conn_structure(int fd) {
-    int res;
-    elog(LOG, "reserve conn for fd: %d", fd);
-    int index;
-    res = get_conn_index(fd, &index);
-    if (res) {
-        elog(LOG, "index for fd: %d is reserved - %d", fd, res);
-        goto reserve_done;
-    }
-
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        elog(LOG, "try to reserve conns[%d].fd = %d", i, conns[i].fd);
-        if (conns[i].fd == 0) {
-            conns[i].fd = fd;
-            elog(LOG, "reserved index: %d", i);
-            goto reserve_done;
-        }
-    }
-reserve_error:
-    return 0;
-reserve_done:
-    return 1;
-}
-
-int
-get_conn_index(int fd, int *index) {
-    elog(LOG, "index ptr in func: %p", index);
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        if (conns[i].fd == fd) {
-            elog(LOG, "get done, index: %d", i);
-            *index = i;
-            return 1;
-        }
-    }
-    elog(LOG, "get is not done");
-    return 0;
-}
-
-void
-free_conn_index(int fd) {
-    elog(LOG, "free conn_index for fd: %d", fd);
-    // int index, res;
-    // res = get_conn_index(fd, &index);
-    // elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
-    // conns[index].fd = 0;
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        if (conns[i].fd == fd) {
-            conns[i].fd = 0;
-            return;
-        }
-    }
-    printConns();
-}
-
-void
-printConns() {
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-        elog(LOG, "conn fd: %d", conns[i].fd);
-}
-
 void test_connect(void) {
     char *query = "INSERT INTO table1 values(501);";
     char *conn_info = "dbname=postgres host=localhost port=5432";
@@ -166,8 +106,6 @@ graphql_proxy_main(Datum main_arg) {
     struct io_uring ring;
     int cqe_count;
     const int val = 1;
-    // conns = (conn_info *)malloc(sizeof(conn_info) * MAX_CONNECTIONS);
-    // conns = (conn_info *)calloc(MAX_CONNECTIONS, sizeof(conn_info));
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
         .sin_port = htons(DEFAULT_PORT),
@@ -302,43 +240,4 @@ exec_query(PGconn** conn, char *query, PGresult** res) {
         return 0;
     }
     return 1;
-}
-
-
-
-
-
-void
-add_socket_read(struct io_uring *ring, int fd, size_t size) {
-    struct io_uring_sqe *sqe;
-    conn_info *conn_i;
-
-    elog(LOG, "Start socket_write");
-    sqe = io_uring_get_sqe(ring);
-    io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
-    elog(LOG, "Read buf from fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
-
-    conn_i = &conns[fd];
-    conn_i->fd = fd;
-    conn_i->type = READ;
-
-    io_uring_sqe_set_data(sqe, conn_i);
-}
-
-void
-add_socket_write(struct io_uring *ring, int fd, size_t size) {
-    conn_info *conn_i;
-    struct io_uring_sqe *sqe;
-
-    elog(LOG, "Start socket_write");
-    elog(LOG, "Write buf into fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
-    sqe = io_uring_get_sqe(ring);
-    elog(LOG, "Get uring sqe done");
-    io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
-
-    conn_i = &conns[fd];
-    conn_i->fd = fd;
-    conn_i->type = WRITE;
-
-    io_uring_sqe_set_data(sqe, conn_i);
 }
