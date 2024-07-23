@@ -28,7 +28,9 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
 
     char* query_begin;
     char *query = NULL;
+    char *response = NULL;
     size_t query_len;
+    size_t response_len;
     int err;
     const char *error;
     struct GraphQLAstNode * AST;
@@ -79,33 +81,49 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     }
 
     // parsing query
-    if ((query_begin = strstr(request, "\n\n")) == 0) {
+    if (((query_begin = strstr(request, "\n\n")) == 0) && ((query_begin = strstr(request, "\r\n\r\n")) == 0)) {
         elog(LOG, "query is empty\n");
         query_len = 0;
     } else {
+        char *response_begin = "HTTP/1.1 200 OK\nContent-Type: text/plain;charset=UTF-8\n\n";
+        
+        // save query
         query_len = request + request_len - query_begin - 2;
         query = (char*)malloc(query_len+1);
         if (!query) goto query_malloc_fail;
         query[query_len] = '\0';
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-        strncpy(bufs[fd], query, query_len);
-        *outputSize = query_len;
-    }
-    elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
-    AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
-    if (!AST) {
-        printf("Parser failed with error: %s\n", error);
-        free((void *)error);
-        goto free_memory;
+        // save response
+        response_len = query_len + strlen(response_begin);
+        response = (char*)malloc(response_len+1);
+        if (!response) goto response_malloc_fail;
+        response[response_len] = '\0';
+        strncpy(response, response_begin, strlen(response_begin));
+        strncpy(response + strlen(response_begin), query_begin + 2, query_len);
+        elog(LOG, "response_len: %ld response: %s\n", response_len, response);
+        strncpy(bufs[fd], response, response_len);
+        *outputSize = response_len;
     }
+    elog(LOG, "buffer after query pars: %.*s\n", query_len, (char*)&bufs[fd]);
 
-    json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
-    elog(LOG, "parsed json schema: %s\n", json);
-    free((void *)json);
+    if (query_len != 0) {
+        AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
+        if (!AST) {
+            printf("Parser failed with error: %s\n", error);
+            free((void *)error);
+            goto free_memory;
+        }
+
+        json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+        elog(LOG, "parsed json schema: %s\n", json);
+        free((void *)json);
+    }
 
 free_memory:
+    if (response) free(response);
+response_malloc_fail:
     if (query) free(query);
 query_malloc_fail:
     if (parsed_header_value) free(parsed_header_value);
