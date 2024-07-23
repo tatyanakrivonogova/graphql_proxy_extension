@@ -1,6 +1,7 @@
 #include "input_parsing.h"
 
 #include "io_uring/event_handling.h"
+#include "io_uring/multiple_user_access.h"
 #include "postgres_connect/postgres_connect.h"
 #include "http_parser.h"
 #include "libgraphqlparser/c/GraphQLAstNode.h"
@@ -36,7 +37,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     *outputSize = 0;
 
     //example connection
-    test_connect();
+    // test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
@@ -91,6 +92,13 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
         strcpy(bufs[fd], query);
         *outputSize = query_len;
+
+        //test sql query execution
+        int index, res;
+        if (get_conn_index(fd, &index)) {
+            elog(LOG, "try to exec row sql query");
+            exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+        }
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
     // elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);

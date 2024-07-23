@@ -2,6 +2,7 @@
 
 #include "postgres.h"
 #include "event_handling.h"
+#include "postgres_connect/postgres_connect.h"
 
 int
 reserve_conn_structure(int fd) {
@@ -18,13 +19,21 @@ reserve_conn_structure(int fd) {
         elog(LOG, "try to reserve conns[%d].fd = %d", i, conns[i].fd);
         if (conns[i].fd == 0) {
             conns[i].fd = fd;
+            index = i;
             elog(LOG, "reserved index: %d", i);
             goto reserve_done;
         }
     }
+    elog(LOG, "no free conns");
 reserve_error:
+    elog(LOG, "can not reserve conn structure");
     return 0;
 reserve_done:
+    char *conn_info = "dbname=postgres host=localhost port=5432";
+    if (!create_connection(&conns[index].pg_conn, conn_info)) {
+        free_conn_index(fd);
+        goto reserve_error;
+    }
     return 1;
 }
 
@@ -47,10 +56,10 @@ free_conn_index(int fd) {
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (conns[i].fd == fd) {
             conns[i].fd = 0;
+            close_connection(&conns[i].pg_conn, &conns[i].pg_res);
             return;
         }
     }
-    printConns();
 }
 
 void

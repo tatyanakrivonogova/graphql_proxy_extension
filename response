@@ -1,11 +1,1 @@
-query findVideos {
-  videos {
-    id
-    title
-    url
-    author {
-      id
-      name
-    }
-  }
-}
+INSERT INTO table1 values(9876);

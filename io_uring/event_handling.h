@@ -6,6 +6,8 @@
 
 
 typedef struct conn_info {
+    PGconn *pg_conn;
+    PGresult *pg_res;
     int fd;
     unsigned type;
 } conn_info;
