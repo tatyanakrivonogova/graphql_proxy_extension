@@ -91,7 +91,7 @@ hashmap *schema_convert(const char *json_schema) {
 
     types.numCreatedTypes = 0;
     queries.numCreatedQueries = 0;
-    mutations.numCreatedMutations = 0;
+    // mutations.numCreatedMutations = 0;
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
         cJSON *definition;
@@ -149,11 +149,12 @@ hashmap *schema_convert(const char *json_schema) {
                 }
                 continue;
             } else if (strcmp(definition_name_value->valuestring, "Mutation") == 0) {
-                // load sql-code for this mutation
+                // parse mutation
                 cJSON *mutation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
                 for (int j = 0; j < cJSON_GetArraySize(mutation_fields); ++j)
                 {
                     int error;
+                    Mutation *mutation;
                     cJSON *mutation_field;
                     cJSON *mutation_field_name;
                     cJSON *mutation_field_name_value;
@@ -166,15 +167,15 @@ hashmap *schema_convert(const char *json_schema) {
                     // elog(LOG, "Mutation %s\n", mutation_field_name_value->valuestring);
                     if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
                         // strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
-                        mutations.createdMutations[mutations.numCreatedMutations] = (Mutation*)malloc(sizeof(Mutation));
-                        if (mutations.createdMutations[mutations.numCreatedMutations] == NULL) {
+                        mutation = (Mutation*)malloc(sizeof(Mutation));
+                        if (mutation == NULL) {
                             elog(LOG, "Mutation struct malloc failed\n");
                             continue;
                         }
-                        strcpy(mutations.createdMutations[mutations.numCreatedMutations]->mutationName, mutation_field_name_value->valuestring);
+                        strcpy(mutation->mutationName, mutation_field_name_value->valuestring);
                         mutation_field_arguments = cJSON_GetObjectItemCaseSensitive(mutation_field, "arguments");
-                        mutations.createdMutations[mutations.numCreatedMutations]->argumentsNumber = cJSON_GetArraySize(mutation_field_arguments);
-                        for (size_t k = 0; k < mutations.createdMutations[mutations.numCreatedMutations]->argumentsNumber; ++k) {
+                        mutation->argumentsNumber = cJSON_GetArraySize(mutation_field_arguments);
+                        for (size_t k = 0; k < mutation->argumentsNumber; ++k) {
                             Argument *currentArg;
                             cJSON *argument;
                             cJSON *argument_name;
@@ -229,22 +230,24 @@ hashmap *schema_convert(const char *json_schema) {
 
                             elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType);
                             // add argument into mutation struct
-                            mutations.createdMutations[mutations.numCreatedMutations]->arguments[k] = currentArg;
+                            mutation->arguments[k] = currentArg;
+                        }                    
+
+                        // get sql-code for mutation
+                        mutation_body = load_function_body(mutation_field_name_value->valuestring);
+                        if (mutation_body != NULL) {
+                            elog(LOG, "Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
+                            mutation->mutationSql = mutation_body;
+                            error = hashmap_set(resolvers, strdup(mutation_field_name_value->valuestring), strlen(mutation_field_name_value->valuestring), (uintptr_t)mutation);
+                            elog(LOG, "key: %s ksize: %ld\n", mutation_field_name_value->valuestring, strlen(mutation_field_name_value->valuestring)+1);
+                            if (error == -1)
+                                elog(LOG, "hashmap_set error for mutation %s: %p\n", mutation_field_name_value->valuestring, mutation_body);
+
+                            
+                            // mutations.numCreatedMutations++;
+                        } else {
+                            elog(LOG, "Mutation %s not found.\n", mutation_field_name_value->valuestring);
                         }
-                        mutations.numCreatedMutations++;
-                    }
-
-                    // get sql-code for mutation
-                    mutation_body = load_function_body(mutation_field_name_value->valuestring);
-                    error = hashmap_set(resolvers, strdup(mutation_field_name_value->valuestring), strlen(mutation_field_name_value->valuestring), (uintptr_t)mutation_body);
-                        if (error == -1)
-                            elog(LOG, "hashmap_set error for mutation %s: %p\n", mutation_field_name_value->valuestring, mutation_body);
-
-                    if (mutation_body != NULL) {
-                        elog(LOG, "Mutation body for %s:\n\t\t%s\n", mutation_field_name_value->valuestring, mutation_body);
-                        // free(mutation_body);
-                    } else {
-                        elog(LOG, "Mutation %s not found.\n", mutation_field_name_value->valuestring);
                     }
                 }
                 continue;

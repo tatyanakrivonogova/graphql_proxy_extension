@@ -19,6 +19,7 @@ typedef struct {
 } Argument;
 typedef struct {
     char mutationName[NAME_LENGTH];
+    char *mutationSql;
     size_t argumentsNumber;
     Argument *arguments[MAX_ARGUMENTS_NUMBER];
     char return_value[NAME_LENGTH];
@@ -45,7 +46,7 @@ typedef struct {
     // char createdMutations[MAX_MUTATIONS_NUMBER][NAME_LENGTH];
     Mutation *createdMutations[MAX_MUTATIONS_NUMBER];
 } Mutations;
-Mutations mutations;
+// Mutations mutations;
 
 
 bool is_type_exists(char* type_name);

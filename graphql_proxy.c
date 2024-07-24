@@ -96,7 +96,7 @@ graphql_proxy_main(Datum main_arg) {
     if (error == -1)
         elog(LOG, "!!!---------hashmap_iterate error\n");
 
-    hashmap_free(resolvers);
+    // hashmap_free(resolvers);
 
 
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -165,7 +165,7 @@ graphql_proxy_main(Datum main_arg) {
                 } else {
                     //parse input
                     int outputSize;
-                    parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd);
+                    parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd, resolvers);
                     add_socket_write(&ring, user_data->fd, outputSize);
                 }
             } else if (type == WRITE) {

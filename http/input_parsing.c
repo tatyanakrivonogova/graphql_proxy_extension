@@ -1,7 +1,9 @@
 #include "input_parsing.h"
 
+#include "../hashmap/map.h"
 #include "../io_uring/event_handling.h"
 #include "http_parser.h"
+#include "../handlers/handle_mutation.c"
 #include "../libgraphqlparser/c/GraphQLAstNode.h"
 #include "../libgraphqlparser/c/GraphQLParser.h"
 #include "../libgraphqlparser/c/GraphQLAstToJSON.h"
@@ -12,7 +14,7 @@
 #include <stdlib.h>
 
 void
-parse_input(char* request, size_t request_len, int* outputSize, int fd) {
+parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap *resolvers) {
     const char *method;
     size_t method_len;
     const char *path;
@@ -34,7 +36,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     int err;
     const char *error;
     struct GraphQLAstNode * AST;
-    const char *json;
+    const char *json_query;
 
     *outputSize = 0;
 
@@ -116,9 +118,10 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
             goto free_memory;
         }
 
-        json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
-        elog(LOG, "parsed json schema: %s\n", json);
-        free((void *)json);
+        json_query = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+        elog(LOG, "parsed json query: %s\n", json_query);
+        handle_mutation(json_query, resolvers);
+        free((void *)json_query);
     }
 
 free_memory:
