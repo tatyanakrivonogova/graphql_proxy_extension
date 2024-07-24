@@ -5,7 +5,8 @@
 #include "../json_graphql/cJSON.h"
 #include "../json_graphql/config/config.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
-#include "../libpq/query_executing.c"
+// #include "../libpq/query_executing.c"
+#include "../postgres_connect/postgres_connect.h"
 #include "../hashmap/map.h"
 #include "operation_converting.h"
 
@@ -273,10 +274,9 @@ hashmap *schema_convert(const char *json_schema) {
     free_config(configEntries, numEntries);
 	// delete the JSON object
 	cJSON_Delete(json);
-
     //clear used resources
-    PQclear(res);
-    close_connection(&conn);
+    close_connection(&conn, &res);
+
 
     return resolvers;
 }

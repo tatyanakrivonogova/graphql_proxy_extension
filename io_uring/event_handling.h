@@ -1,7 +1,7 @@
 #include <liburing.h>
 #include "postgresql/libpq-fe.h"
 
-#define MAX_CONNECTIONS      (1000)
+#define MAX_CONNECTIONS      (20)
 #define MAX_MESSAGE_LEN      (10000)
 
 

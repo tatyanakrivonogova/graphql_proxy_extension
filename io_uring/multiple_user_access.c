@@ -7,8 +7,8 @@
 int
 reserve_conn_structure(int fd) {
     int res;
-    elog(LOG, "reserve conn for fd: %d", fd);
     int index;
+    elog(LOG, "reserve conn for fd: %d", fd);
     res = get_conn_index(fd, &index);
     if (res) {
         elog(LOG, "index for fd: %d is reserved - %d", fd, res);
@@ -29,6 +29,7 @@ reserve_error:
     elog(LOG, "can not reserve conn structure");
     return 0;
 reserve_done:
+    elog(LOG, "Connecting to database...\n");
     char *conn_info = "dbname=postgres host=localhost port=5432";
     if (!create_connection(&conns[index].pg_conn, conn_info)) {
         free_conn_index(fd);

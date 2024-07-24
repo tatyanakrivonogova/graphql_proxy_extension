@@ -39,6 +39,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
     const char *error;
     struct GraphQLAstNode * AST;
     const char *json_query;
+    int index;
 
     *outputSize = 0;
 
@@ -109,7 +110,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         strncpy(bufs[fd], response, response_len);
         *outputSize = response_len;
     }
-    elog(LOG, "buffer after query pars: %.*s\n", query_len, query);
+    elog(LOG, "buffer after query pars: %.*s\n", (int)query_len, query);
 
 
     if (query_len != 0) {
@@ -127,11 +128,10 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
     }
 
     //test sql query execution
-    int index, res;
-    if (get_conn_index(fd, &index)) {
-        elog(LOG, "try to exec row sql query");
-        exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
-    }
+    // if (get_conn_index(fd, &index)) {
+    //     elog(LOG, "try to exec row sql query");
+    //     exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+    // }
 
     // close connection after completing request
 

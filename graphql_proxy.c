@@ -81,6 +81,7 @@ graphql_proxy_main(Datum main_arg) {
     const char *json_schema = schema_to_json();
     // parse schema
     hashmap *resolvers = schema_convert(json_schema);
+    elog(LOG, "after schema_convert\n");
 
     error = hashmap_iterate(resolvers, print_entry, NULL);
     if (error == -1)
@@ -159,7 +160,7 @@ graphql_proxy_main(Datum main_arg) {
                     int outputSize;
                     parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd, resolvers);
                     add_socket_write(&ring, user_data->fd, outputSize);
-                    printConns();
+                    // printConns();
                 }
             } else if (type == WRITE) {
                 add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);

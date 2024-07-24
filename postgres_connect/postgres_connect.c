@@ -82,3 +82,26 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     }
     return 1;
 }
+
+void handle_query(PGresult* res) {
+    int rows, cols;
+
+    rows = PQntuples(res);
+    cols = PQnfields(res);
+
+    elog(LOG, "Number of rows: %d\n", rows);
+    elog(LOG, "Number of columns: %d\n", cols);
+    // Print the column names
+    for (int i = 0; i < cols; i++) {
+        elog(LOG, "%s\t", PQfname(res, i));
+    }
+
+    // Print all the rows and columns
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+        // Print the column value
+            elog(LOG, "%s\t", PQgetvalue(res, i, j));
+        }
+        elog(LOG, "-------------------------------------------------------");
+    }
+}

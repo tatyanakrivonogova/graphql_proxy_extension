@@ -1,6 +1,7 @@
 #include "schema.h"
 
-#include "stdlib.h"
+#include "postgres.h"
+#include <stdlib.h>
 
 void free_arguments(Operation *operation) {
     if (operation == NULL) return;

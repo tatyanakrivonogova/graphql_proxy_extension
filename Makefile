@@ -7,6 +7,8 @@ OBJS = \
   http/http_parser.o \
   http/input_parsing.o \
   io_uring/event_handling.o \
+  io_uring/multiple_user_access.o  \
+  postgres_connect/postgres_connect.o \
   json_graphql/config/config.o \
   handlers/handle_operation.o \
   schema/schema.o \

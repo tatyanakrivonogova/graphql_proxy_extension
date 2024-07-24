@@ -146,6 +146,7 @@ static int hashmap_resize(hashmap* m)
 // FNV-1a hash function
 static inline uint32_t hash_data(const unsigned char* data, size_t size)
 {
+	uint64_t last;
 	size_t nblocks = size / 8;
 	uint64_t hash = HASHMAP_HASH_INIT;
 	for (size_t i = 0; i < nblocks; ++i)
@@ -158,7 +159,7 @@ static inline uint32_t hash_data(const unsigned char* data, size_t size)
 		data += 8;
 	}
 
-	uint64_t last = size & 0xff;
+	last = size & 0xff;
 	switch (size % 8)
 	{
 	case 7:
@@ -229,12 +230,13 @@ static struct bucket* find_entry(hashmap* m, const void* key, size_t ksize, uint
 
 int hashmap_set(hashmap* m, const void* key, size_t ksize, uintptr_t val)
 {
+	uint32_t hash;
 	if (m->count + 1 > HASHMAP_MAX_LOAD * m->capacity) {
 		if (hashmap_resize(m) == -1)
 			return -1;
 	}
 
-	uint32_t hash = hash_data(key, ksize);
+	hash = hash_data(key, ksize);
 	struct bucket* entry = find_entry(m, key, ksize, hash);
 	if (entry->key == NULL)
 	{
@@ -254,12 +256,13 @@ int hashmap_set(hashmap* m, const void* key, size_t ksize, uintptr_t val)
 
 int hashmap_get_set(hashmap* m, const void* key, size_t ksize, uintptr_t* out_in)
 {
+	uint32_t hash;
 	if (m->count + 1 > HASHMAP_MAX_LOAD * m->capacity) {
 		if (hashmap_resize(m) == -1)
 			return -1;
 	}
 
-	uint32_t hash = hash_data(key, ksize);
+	hash = hash_data(key, ksize);
 	struct bucket* entry = find_entry(m, key, ksize, hash);
 	if (entry->key == NULL)
 	{
@@ -282,12 +285,14 @@ int hashmap_get_set(hashmap* m, const void* key, size_t ksize, uintptr_t* out_in
 
 int hashmap_set_free(hashmap* m, const void* key, size_t ksize, uintptr_t val, hashmap_callback c, void* usr)
 {
+	uint32_t hash;
+	int error;
 	if (m->count + 1 > HASHMAP_MAX_LOAD * m->capacity) {
 		if (hashmap_resize(m) == -1)
 			return -1;
 	}
 
-	uint32_t hash = hash_data(key, ksize);
+	hash = hash_data(key, ksize);
 	struct bucket *entry = find_entry(m, key, ksize, hash);
 	if (entry->key == NULL)
 	{
@@ -307,7 +312,7 @@ int hashmap_set_free(hashmap* m, const void* key, size_t ksize, uintptr_t val, h
 	// allow the callback to free entry data.
 	// use old key and value so the callback can free them.
 	// the old key and value will be overwritten after this call.
-	int error = c(entry->key, ksize, entry->value, usr);
+	error = c(entry->key, ksize, entry->value, usr);
 
 	// overwrite the old key pointer in case the callback frees it.
 	entry->key = key;
