@@ -13,15 +13,15 @@ typedef struct {
     bool nonNullType;
 } Argument;
 
+
+// operation = named query or mutation (which is called by its name and arguments)
 typedef struct {
-    char mutationName[NAME_LENGTH];
-    char *mutationSql;
+    char operationName[NAME_LENGTH];
+    char *operationSql;
     size_t argumentsNumber;
     Argument *arguments[MAX_ARGUMENTS_NUMBER];
     char return_value[NAME_LENGTH];
-} Mutation;
-
-
+} Operation;
 
 
 // types which are already converted to PostgresQL
@@ -36,13 +36,13 @@ Types types;
 typedef struct {
     size_t numCreatedMutations;
     // char createdMutations[MAX_MUTATIONS_NUMBER][NAME_LENGTH];
-    Mutation *createdMutations[MAX_MUTATIONS_NUMBER];
+    Operation *createdMutations[MAX_MUTATIONS_NUMBER];
 } Mutations;
 
 // query with sql-
 typedef struct {
     size_t numCreatedQueries;
-    char createdQueries[MAX_QUERIES_NUMBER][NAME_LENGTH];
+    Operation *createdMutations[MAX_MUTATIONS_NUMBER];
 } Queries;
 
-void free_arguments(Mutation *mutation);
+void free_arguments(Operation *operation);

@@ -7,6 +7,7 @@
 #include "../json_graphql/resolvers/resolverLoader.h"
 #include "../libpq/query_executing.c"
 #include "../hashmap/map.h"
+#include "operation_converting.h"
 
 
 bool is_type_exists(char* type_name) {
@@ -86,11 +87,8 @@ hashmap *schema_convert(const char *json_schema) {
 
 	// access the JSON data
 	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
-    elog(LOG, "definitions: %p\n", definitions);
 
     types.numCreatedTypes = 0;
-    queries.numCreatedQueries = 0;
-    // mutations.numCreatedMutations = 0;
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
         cJSON *definition;
@@ -109,47 +107,9 @@ hashmap *schema_convert(const char *json_schema) {
         definition_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
         definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
-            if (strcmp(definition_name_value->valuestring, "Query") == 0) {
-                // parse query name
-                cJSON *query_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
-                for (int j = 0; j < cJSON_GetArraySize(query_fields); ++j)
-                {
-                    int error;
-                    cJSON *query_field;
-                    cJSON *query_field_name;
-                    cJSON *query_field_name_value;
-                    char* query_body;
-
-                    query_field = cJSON_GetArrayItem(query_fields, j);
-                    query_field_name = cJSON_GetObjectItemCaseSensitive(query_field, "name");
-                    query_field_name_value = cJSON_GetObjectItemCaseSensitive(query_field_name, "value");
-                    // elog(LOG, "Query %s\n", query_field_name_value->valuestring);
-                    if (query_field_name_value != NULL && (cJSON_IsString(query_field_name_value) && (query_field_name_value->valuestring != NULL))) {
-                        strcpy(queries.createdQueries[queries.numCreatedQueries++], query_field_name_value->valuestring);
-                    }
-
-                    // get sql-code for query
-                    query_body = load_function_body(query_field_name_value->valuestring);
-                    if (query_body != NULL) {
-                        char *formatted_query;
-
-                        error = hashmap_set(resolvers, strdup(query_field_name_value->valuestring), strlen(query_field_name_value->valuestring), (uintptr_t)query_body);
-                        if (error == -1)
-                            elog(LOG, "hashmap_set error for query %s: %p\n", query_field_name_value->valuestring, query_body);
-
-                        formatted_query = (char*)malloc(QUERY_LENGTH);
-                        sprintf(formatted_query, query_body, 10);
-                        elog(LOG, "Query body for %s:\n\t\t%s\n", query_field_name_value->valuestring, formatted_query);
-                        // free(query_body);
-                        free(formatted_query);
-                    } else {
-                        elog(LOG, "Query %s not found.\n", query_field_name_value->valuestring);
-                    }
-                }
-                continue;
-            } else if (strcmp(definition_name_value->valuestring, "Mutation") == 0) {
-                // parse mutation
-                mutation_convert(definition, resolvers);
+            if (strcmp(definition_name_value->valuestring, "Mutation") == 0 || (strcmp(definition_name_value->valuestring, "Query") == 0)) {
+                // parse operation
+                operation_convert(definition, resolvers);
                 continue;
             }
         }

@@ -89,8 +89,8 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
 
         definition_operation = cJSON_GetObjectItemCaseSensitive(definition, "operation");
         if (definition_operation != NULL && (cJSON_IsString(definition_operation)) && (definition_operation->valuestring != NULL)
-                && (strcmp(definition_operation->valuestring, "mutation") != 0)) {
-            elog(LOG, "Mutation operation expected\n");
+                && (strcmp(definition_operation->valuestring, "mutation") != 0) && (strcmp(definition_operation->valuestring, "query") != 0)) {
+            elog(LOG, "Operation query or mutation expected\n");
             continue;
         }
 
@@ -110,18 +110,16 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
             selection_name_value = cJSON_GetObjectItemCaseSensitive(selection_name, "value");
             if (selection_name_value != NULL && (cJSON_IsString(selection_name_value)) 
                     && (selection_name_value->valuestring != NULL))
-                elog(LOG, "mutation %s is called\n", selection_name_value->valuestring);
+                elog(LOG, "operation %s is called\n", selection_name_value->valuestring);
 
             // get sql-code
-            elog(LOG, "hashmap: %p\n", resolvers);
-
             if (hashmap_get(resolvers, selection_name_value->valuestring, strlen(selection_name_value->valuestring), &res)) {
-                elog(LOG, "sql format_query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
+                elog(LOG, "sql format_query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Operation *)res)->operationSql);
                 // copy original format_query
-                format_query = (char *)malloc(256);
-                strcpy(format_query, ((Mutation *)res)->mutationSql);
+                format_query = (char *)malloc(MAX_QUERY_LENGTH);
+                strcpy(format_query, ((Operation *)res)->operationSql);
                 // query for setting argument's values
-                query = (char *)malloc(256);
+                query = (char *)malloc(MAX_QUERY_LENGTH);
             } else {
                 elog(LOG, "sql format_query for %s not found.\n", selection_name_value->valuestring);
                 continue;
@@ -158,10 +156,10 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                     // set value of argument
                     if (strcmp(arguement_value_kind->valuestring, "IntValue") == 0) {
                         elog(LOG, "int argument[%d] value: %s\n", k, argument_value_value->valuestring);
-                        insert_int(query, 256, format_query, argument_value_value->valuestring);
+                        insert_int(query, MAX_QUERY_LENGTH, format_query, argument_value_value->valuestring);
                     } else if (strcmp(arguement_value_kind->valuestring, "StringValue") == 0) {
                         elog(LOG, "string argument[%d] value: %s\n", k, argument_value_value->valuestring);
-                        insert_string(query, 256, format_query, argument_value_value->valuestring);
+                        insert_string(query, MAX_QUERY_LENGTH, format_query, argument_value_value->valuestring);
                     }
                 }
                 swap(&format_query, &query);

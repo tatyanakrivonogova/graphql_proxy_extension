@@ -13,7 +13,7 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
 
 void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num);
 
-void free_arguments(Mutation *mutation);
+void free_arguments(Operation *mutation);
 
 hashmap *schema_convert(const char *json_schema);
 

@@ -8,10 +8,10 @@ OBJS = \
   http/input_parsing.o \
   io_uring/event_handling.o \
   json_graphql/config/config.o \
-  handlers/handle_mutation.o \
+  handlers/handle_operation.o \
   schema/schema.o \
   schema/schema_converting.o \
-  schema/mutation_converting.o \
+  schema/operation_converting.o \
   json_graphql/cJSON.o \
   json_graphql/resolvers/resolverLoader.o \
   libgraphqlparser/schema_to_json.o \
