@@ -11,22 +11,41 @@ void swap(char **a, char **b) {
     *b = temp;
 }
 
-void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
-    // find %
-    const char *pos = strchr(format, '%');
+void insert_int(char *buffer, size_t buffer_size, const char *format, const char *value) {
+    // find %s
+    const char *pos = strstr(format, "%d");
     if (pos != NULL) {
-        // copy string before %
+        // copy string before %s
         size_t prefix_length = pos - format;
-        if (prefix_length + strlen(value) + strlen(pos + 1) < buffer_size) {
+        if (prefix_length + strlen(value) + strlen(pos + 2) < buffer_size) {
             strncpy(buffer, format, prefix_length);
             buffer[prefix_length] = '\0';
 
-            strcat(buffer, value); // add string
-            strcat(buffer, pos + 1); // add rest of string
+            strcat(buffer, value);
+            strcat(buffer, pos + 2);
         }
     } else {
-        // copy original string if % is not in format
-        elog(LOG, "copy original string\n");
+        // copy original string if %s is not in buffer
+        strncpy(buffer, format, buffer_size - 1);
+        buffer[buffer_size - 1] = '\0';
+    }
+}
+
+void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
+    // find %s
+    const char *pos = strstr(format, "%s");
+    if (pos != NULL) {
+        // copy string before %s
+        size_t prefix_length = pos - format;
+        if (prefix_length + strlen(value) + strlen(pos + 2) < buffer_size) {
+            strncpy(buffer, format, prefix_length);
+            buffer[prefix_length] = '\0';
+
+            strcat(buffer, value);
+            strcat(buffer, pos + 2);
+        }
+    } else {
+        // copy original string if %s is not in buffer
         strncpy(buffer, format, buffer_size - 1);
         buffer[buffer_size - 1] = '\0';
     }
@@ -35,8 +54,8 @@ void insert_string(char *buffer, size_t buffer_size, const char *format, const c
 void handle_mutation(const char *json_query, hashmap *resolvers) {
     cJSON *json;
     cJSON *definitions;
+    char *format_query;
     char *query;
-    char *formatted_query;
 
     json = cJSON_Parse(json_query);
     if (json == NULL) {
@@ -84,6 +103,7 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
             cJSON *selection_name;
             cJSON *selection_name_value;
             cJSON *selection_arguments;
+            uintptr_t res;
 
             selection = cJSON_GetArrayItem(selections, j);
             selection_name = cJSON_GetObjectItemCaseSensitive(selection, "name");
@@ -95,16 +115,15 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
             // get sql-code
             elog(LOG, "hashmap: %p\n", resolvers);
 
-            uintptr_t res;
             if (hashmap_get(resolvers, selection_name_value->valuestring, strlen(selection_name_value->valuestring), &res)) {
-                elog(LOG, "sql query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
-                // copy original query
-                query = (char *)malloc(256);
-                strcpy(query, ((Mutation *)res)->mutationSql);
+                elog(LOG, "sql format_query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
+                // copy original format_query
+                format_query = (char *)malloc(256);
+                strcpy(format_query, ((Mutation *)res)->mutationSql);
                 // query for setting argument's values
-                formatted_query = (char *)malloc(256);
+                query = (char *)malloc(256);
             } else {
-                elog(LOG, "sql query for %s not found.\n", selection_name_value->valuestring);
+                elog(LOG, "sql format_query for %s not found.\n", selection_name_value->valuestring);
                 continue;
             }
 
@@ -128,31 +147,32 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                 argument_value = cJSON_GetObjectItemCaseSensitive(argument, "value");
                 arguement_value_kind = cJSON_GetObjectItemCaseSensitive(argument_value, "kind");
                 if (arguement_value_kind != NULL && (cJSON_IsString(arguement_value_kind)) 
-                    && (arguement_value_kind->valuestring != NULL))
+                    && (arguement_value_kind->valuestring != NULL)) {
                     elog(LOG, "argument[%d] kind: %s\n", k, arguement_value_kind->valuestring);
-                argument_value_value = cJSON_GetObjectItemCaseSensitive(argument_value, "value");
-                if (argument_value_value != NULL && (cJSON_IsString(argument_value_value)) 
-                    && (argument_value_value->valuestring != NULL)) {
-                    elog(LOG, "string argument[%d] value: %s\n", k, argument_value_value->valuestring);
-                    // set arguments into mutation function
-                    elog(LOG, "before sprintf formatted_query: %s query: %s value: %s\n", formatted_query, query, argument_value_value->valuestring);
-                    insert_string(formatted_query, 256, query, argument_value_value->valuestring);
-                    elog(LOG, "after sprintf\n");
-                }
+                    argument_value_value = cJSON_GetObjectItemCaseSensitive(argument_value, "value");
+                    if (argument_value_value == NULL) {
+                        elog(LOG, "Value of argument is not defined\n");
+                        continue;
+                    }
 
-                if (argument_value_value != NULL && (cJSON_IsNumber(argument_value_value))) {
-                    elog(LOG, "int argument[%d] value: %d\n", k, argument_value_value->valueint);
-                    // set arguments into mutation function
-                    insert_string(formatted_query, 256, query, argument_value_value->valueint);
+                    // set value of argument
+                    if (strcmp(arguement_value_kind->valuestring, "IntValue") == 0) {
+                        elog(LOG, "int argument[%d] value: %s\n", k, argument_value_value->valuestring);
+                        insert_int(query, 256, format_query, argument_value_value->valuestring);
+                    } else if (strcmp(arguement_value_kind->valuestring, "StringValue") == 0) {
+                        elog(LOG, "string argument[%d] value: %s\n", k, argument_value_value->valuestring);
+                        insert_string(query, 256, format_query, argument_value_value->valuestring);
+                    }
                 }
-                swap(&query, &formatted_query);
+                swap(&format_query, &query);
             }
 
-            elog(LOG, "Formatted query: %s\n", formatted_query);
-            // execute formatted query
-            elog(LOG, "before free\n");
+            swap(&format_query, &query);
+            elog(LOG, "query: %s\n", query);
+            // execute query
+            // TO DO
+            free(format_query);
             free(query);
-            free(formatted_query);
         }
     }
 }

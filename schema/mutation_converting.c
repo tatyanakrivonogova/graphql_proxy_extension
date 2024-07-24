@@ -115,5 +115,4 @@ void mutation_convert(cJSON *definition, hashmap *resolvers) {
 parse_next_mutation:
         elog(LOG, "parse next mutation\n");
     }
-    
 }

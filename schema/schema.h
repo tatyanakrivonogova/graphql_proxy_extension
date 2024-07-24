@@ -12,6 +12,7 @@ typedef struct {
     char argType[NAME_LENGTH];
     bool nonNullType;
 } Argument;
+
 typedef struct {
     char mutationName[NAME_LENGTH];
     char *mutationSql;
@@ -19,6 +20,8 @@ typedef struct {
     Argument *arguments[MAX_ARGUMENTS_NUMBER];
     char return_value[NAME_LENGTH];
 } Mutation;
+
+
 
 
 // types which are already converted to PostgresQL
@@ -29,19 +32,17 @@ typedef struct {
 Types types;
 
 
-typedef struct {
-    size_t numCreatedQueries;
-    char createdQueries[MAX_QUERIES_NUMBER][NAME_LENGTH];
-} Queries;
-Queries queries;
-
-
 // mutation with sql-function and argument types
 typedef struct {
     size_t numCreatedMutations;
     // char createdMutations[MAX_MUTATIONS_NUMBER][NAME_LENGTH];
     Mutation *createdMutations[MAX_MUTATIONS_NUMBER];
 } Mutations;
-// Mutations mutations;
+
+// query with sql-
+typedef struct {
+    size_t numCreatedQueries;
+    char createdQueries[MAX_QUERIES_NUMBER][NAME_LENGTH];
+} Queries;
 
 void free_arguments(Mutation *mutation);
