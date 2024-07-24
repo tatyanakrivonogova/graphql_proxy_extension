@@ -1,12 +1,14 @@
 #include "input_parsing.h"
 
-#include "io_uring/event_handling.h"
+#include "../hashmap/map.h"
+#include "../io_uring/event_handling.h"
 #include "io_uring/multiple_user_access.h"
 #include "postgres_connect/postgres_connect.h"
 #include "http_parser.h"
-#include "libgraphqlparser/c/GraphQLAstNode.h"
-#include "libgraphqlparser/c/GraphQLParser.h"
-#include "libgraphqlparser/c/GraphQLAstToJSON.h"
+#include "../handlers/handlers.h"
+#include "../libgraphqlparser/c/GraphQLAstNode.h"
+#include "../libgraphqlparser/c/GraphQLParser.h"
+#include "../libgraphqlparser/c/GraphQLAstToJSON.h"
 
 #include "postgres.h"
 
@@ -14,7 +16,7 @@
 #include <stdlib.h>
 
 void
-parse_input(char* request, size_t request_len, int* outputSize, int fd) {
+parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap *resolvers) {
     const char *method;
     size_t method_len;
     const char *path;
@@ -30,24 +32,26 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
 
     char* query_begin;
     char *query = NULL;
+    char *response = NULL;
     size_t query_len;
+    size_t response_len;
     int err;
     const char *error;
+    struct GraphQLAstNode * AST;
+    const char *json_query;
 
     *outputSize = 0;
 
-    //example connection
+     //example connection
     // test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
+    elog(LOG, "request: %.*s\n", (int)request_len, request);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
     if (err == -1 || err == -2) {
-        // printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
         *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
         strcpy((char*)&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
-        // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
-        //             sizeof("Failed while parse HTTP resuest. Change and try again\n"));
         goto write_fail_response;
     }
 
@@ -80,42 +84,60 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     }
 
     // parsing query
-    if ((query_begin = strstr(request, "\n\n")) == 0) {
+    if (((query_begin = strstr(request, "\n\n")) == 0) && ((query_begin = strstr(request, "\r\n\r\n")) == 0)) {
         elog(LOG, "query is empty\n");
         query_len = 0;
     } else {
+        char *response_begin = "HTTP/1.1 200 OK\nContent-Type: text/plain;charset=UTF-8\n\n";
+        
+        // save query
         query_len = request + request_len - query_begin - 2;
         query = (char*)malloc(query_len+1);
         if (!query) goto query_malloc_fail;
         query[query_len] = '\0';
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-        strcpy(bufs[fd], query);
-        *outputSize = query_len;
 
-        //test sql query execution
-        int index, res;
-        if (get_conn_index(fd, &index)) {
-            elog(LOG, "try to exec row sql query");
-            exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+                // save response
+        response_len = query_len + strlen(response_begin);
+        response = (char*)malloc(response_len+1);
+        if (!response) goto response_malloc_fail;
+        response[response_len] = '\0';
+        strncpy(response, response_begin, strlen(response_begin));
+        strncpy(response + strlen(response_begin), query_begin + 2, query_len);
+        elog(LOG, "response_len: %ld response: %s\n", response_len, response);
+        strncpy(bufs[fd], response, response_len);
+        *outputSize = response_len;
+    }
+    elog(LOG, "buffer after query pars: %.*s\n", query_len, query);
+
+
+    if (query_len != 0) {
+        AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
+        if (!AST) {
+            printf("Parser failed with error: %s\n", error);
+            free((void *)error);
+            goto free_memory;
         }
-    }
-    //res = write(io_handle->fd, query, (size_t)query_len);
-    // elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
-    struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
-    if (!AST) {
-        printf("Parser failed with error: %s\n", error);
-        free((void *)error);  // NOLINT
-        return 1;
+        json_query = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+        elog(LOG, "parsed json query: %s\n", json_query);
+        handle_mutation(json_query, resolvers);
+        free((void *)json_query);
     }
 
-    const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
-    elog(LOG, "parsed json schema: %s\n", json);
-    free((void *)json);
+    //test sql query execution
+    int index, res;
+    if (get_conn_index(fd, &index)) {
+        elog(LOG, "try to exec row sql query");
+        exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+    }
 
     // close connection after completing request
 
+free_memory:
+    if (response) free(response);
+response_malloc_fail:
     if (query) free(query);
 query_malloc_fail:
     if (parsed_header_value) free(parsed_header_value);

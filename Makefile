@@ -3,11 +3,18 @@
 MODULE_big = graphql_proxy
 OBJS = \
   $(WIN32RES) \
+  hashmap/map.o \
   http/http_parser.o \
   http/input_parsing.o \
   io_uring/event_handling.o \
-  io_uring/multiple_user_access.o  \
-  postgres_connect/postgres_connect.o \
+  json_graphql/config/config.o \
+  handlers/handle_operation.o \
+  schema/schema.o \
+  schema/schema_converting.o \
+  schema/operation_converting.o \
+  json_graphql/cJSON.o \
+  json_graphql/resolvers/resolverLoader.o \
+  libgraphqlparser/schema_to_json.o \
   graphql_proxy.o
 
 EXTENSION = graphql_proxy

@@ -1,5 +1,8 @@
 #include "io_uring/event_handling.h"
 #include "http/input_parsing.h"
+#include "schema/schema_converting.h"
+#include "libgraphqlparser/schema_to_json.h"
+#include "hashmap/map.h"
 #include "io_uring/multiple_user_access.h"
 #include "postgres_connect/postgres_connect.h"
 
@@ -51,12 +54,21 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
+int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
+{
+	elog(LOG, "Entry \"%s\": %s\n", (char *)key, (char *)value);
+    return 0;
+}
+
 void
 graphql_proxy_main(Datum main_arg) {
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
+    int listen_socket;
     const int val = 1;
+    int error;
+
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
         .sin_port = htons(DEFAULT_PORT),
@@ -65,7 +77,19 @@ graphql_proxy_main(Datum main_arg) {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
-    int listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // get json schema
+    const char *json_schema = schema_to_json();
+    // parse schema
+    hashmap *resolvers = schema_convert(json_schema);
+
+    error = hashmap_iterate(resolvers, print_entry, NULL);
+    if (error == -1)
+        elog(LOG, "!!!---------hashmap_iterate error\n");
+
+    // hashmap_free(resolvers);
+
+
+    listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
         ereport(ERROR, errmsg("socket(): %s\n", errorbuf));
@@ -108,7 +132,7 @@ graphql_proxy_main(Datum main_arg) {
         io_uring_submit(&ring);
 
         ret = io_uring_wait_cqe(&ring, &cqe);
-        // assert(ret == 0);
+        assert(ret == 0);
 
         cqe_count = io_uring_peek_batch_cqe(&ring, cqes, sizeof(cqes) / sizeof(cqes[0]));
 
@@ -133,7 +157,7 @@ graphql_proxy_main(Datum main_arg) {
                 } else {
                     //parse input
                     int outputSize;
-                    parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd);
+                    parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd, resolvers);
                     add_socket_write(&ring, user_data->fd, outputSize);
                     printConns();
                 }
