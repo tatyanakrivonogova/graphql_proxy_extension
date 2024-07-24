@@ -6,3 +6,44 @@ GET /query HTTP/1.0
 Content-Length: 0
 
 INSERT INTO table1 values(9876);
+
+------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  table1 {
+    id
+  }
+$$);
+
+--------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book {
+    id,
+    title,
+    author_id
+  }
+$$);
+
+----------------------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book {
+    id,
+    author {
+      id,
+      name
+    }
+  }
+$$);
+
+alter table book add constarint fk_book_author foreign key (author) references author(id);

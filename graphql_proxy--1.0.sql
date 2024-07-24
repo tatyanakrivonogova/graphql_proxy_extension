@@ -1,4 +1,4 @@
-BEGIN;
+-- BEGIN;
 
 DROP SCHEMA IF EXISTS graphql CASCADE;
 CREATE SCHEMA graphql;
@@ -560,4 +560,4 @@ RETURNS text AS $$
          END
 $$ LANGUAGE sql STABLE;
 
-END;
+-- END;

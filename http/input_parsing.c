@@ -98,6 +98,24 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         if (get_conn_index(fd, &index)) {
             elog(LOG, "try to exec row sql query");
             exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+            int rows = PQntuples(conns[index].pg_res);
+            int cols = PQnfields(conns[index].pg_res);
+
+            elog(LOG, "Number of rows: %d", rows);
+            elog(LOG, "Number of columns: %d", cols);
+            // Print the column names
+            for (int i = 0; i < cols; i++) {
+                elog(LOG, "%s\t", PQfname(conns[index].pg_res, i));
+            }
+
+            // Print all the rows and columns
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < cols; j++) {
+                // Print the column value
+                    elog(LOG, "%s\t", PQgetvalue(conns[index].pg_res, i, j));
+                }
+                elog(LOG, "-------------------------------------------------------");
+            }
         }
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
@@ -107,7 +125,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     if (!AST) {
         printf("Parser failed with error: %s\n", error);
         free((void *)error);  // NOLINT
-        return 1;
+        return;
     }
 
     const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
