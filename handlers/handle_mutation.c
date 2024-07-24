@@ -5,17 +5,10 @@
 
 #include "postgres.h"
 
-int print_hashmap(const void* key, size_t ksize, uintptr_t value, void* usr)
-{
-	elog(LOG, "Entry \"%s\": %s\n", (char *)key, (char *)value);
-    return 0;
-}
-
 void handle_mutation(const char *json_query, hashmap *resolvers) {
     cJSON *json;
     cJSON *definitions;
     Mutation *mutation;
-    char *sql_query;
     char *formatted_query;
 
     json = cJSON_Parse(json_query);
@@ -74,22 +67,15 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
 
             // get sql-code
             elog(LOG, "hashmap: %p\n", resolvers);
-            sql_query = (char *)malloc(256);
-            if (sql_query == NULL) {
-                elog(LOG, "sql query malloc failed\n");
-                continue;
-            }
-
-            // int error = hashmap_iterate(resolvers, print_hashmap, NULL);
-            // if (error == -1)
-            //     elog(LOG, "!!!---------hashmap_iterate error\n");
 
             uintptr_t res;
             if (hashmap_get(resolvers, selection_name_value->valuestring, strlen(selection_name_value->valuestring), &res)) {
                 // elog(LOG, "sql query for %s:\n\t\t%p\n", selection_name_value->valuestring, res);
                 elog(LOG, "sql query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
+                formatted_query = (char *)malloc(256);
             } else {
                 elog(LOG, "sql query for %s not found.\n", selection_name_value->valuestring);
+                continue;
             }
 
             selection_arguments = cJSON_GetObjectItemCaseSensitive(selection, "arguments");
@@ -116,12 +102,24 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                     elog(LOG, "argument[%d] kind: %s\n", k, arguement_value_kind->valuestring);
                 argument_value_value = cJSON_GetObjectItemCaseSensitive(argument_value, "value");
                 if (argument_value_value != NULL && (cJSON_IsString(argument_value_value)) 
-                    && (argument_value_value->valuestring != NULL))
+                    && (argument_value_value->valuestring != NULL)) {
                     elog(LOG, "argument[%d] value: %s\n", k, argument_value_value->valuestring);
+                    // set arguments into mutation function
+                    sprintf(formatted_query, ((Mutation *)res)->mutationSql, argument_value_value->valuestring);
+                }
 
-                // set arguments into mutation function
-
+                if (argument_value_value != NULL && (cJSON_IsNumber(argument_value_value)) 
+                    && (argument_value_value->valueint != NULL)) {
+                    elog(LOG, "argument[%d] value: %d\n", k, argument_value_value->valueint);
+                    // set arguments into mutation function
+                    sprintf(formatted_query, ((Mutation *)res)->mutationSql, argument_value_value->valueint);
+                }
+                
             }
+
+            elog(LOG, "Formatted query: %s\n", formatted_query);
+            // execute formatted query
+            free(formatted_query);
         }
     }
 }
