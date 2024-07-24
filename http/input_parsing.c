@@ -1,6 +1,8 @@
 #include "input_parsing.h"
 
-#include "../io_uring/event_handling.h"
+#include "io_uring/event_handling.h"
+#include "io_uring/multiple_user_access.h"
+#include "postgres_connect/postgres_connect.h"
 #include "http_parser.h"
 #include "libgraphqlparser/c/GraphQLAstNode.h"
 #include "libgraphqlparser/c/GraphQLParser.h"
@@ -10,8 +12,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-
-void test_connect(void);
 
 void
 parse_input(char* request, size_t request_len, int* outputSize, int fd) {
@@ -33,19 +33,17 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
     size_t query_len;
     int err;
     const char *error;
-    struct GraphQLAstNode * AST;
-    const char *json;
 
     *outputSize = 0;
 
-     //example connection
-    test_connect();
+    //example connection
+    // test_connect();
 
     elog(LOG, "read from client: %ld\n", request_len);
     num_headers = NUM_HEADERS;
     err = phr_parse_request(request, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
     if (err == -1 || err == -2) {
-        printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
+        // printf("send_request_to_server(): failed while parse HTTP request, error %d\n", err);
         *outputSize = sizeof("Failed while parse HTTP resuest. Change and try again\n");
         strcpy((char*)&bufs[fd], "Failed while parse HTTP request. Change and try again\n");
         // res = write(io_handle->fd, "Failed while parse HTTP request. Change and try again\n", 
@@ -94,24 +92,30 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd) {
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
         strcpy(bufs[fd], query);
         *outputSize = query_len;
+
+        //test sql query execution
+        int index, res;
+        if (get_conn_index(fd, &index)) {
+            elog(LOG, "try to exec row sql query");
+            exec_query(&conns[index].pg_conn, query, &conns[index].pg_res);
+        }
     }
     //res = write(io_handle->fd, query, (size_t)query_len);
-    elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
+    // elog(LOG, "buffer after query pars: %s", (char*)&bufs[fd]);
 
-    AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
+    struct GraphQLAstNode * AST = graphql_parse_string_with_experimental_schema_support((const char *)query, &error);
     if (!AST) {
         printf("Parser failed with error: %s\n", error);
         free((void *)error);  // NOLINT
-        goto free_memory;
+        return 1;
     }
 
-    json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+    const char *json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
     elog(LOG, "parsed json schema: %s\n", json);
     free((void *)json);
 
     // close connection after completing request
 
-free_memory:
     if (query) free(query);
 query_malloc_fail:
     if (parsed_header_value) free(parsed_header_value);

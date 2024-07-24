@@ -1,8 +1,8 @@
-// A Bison parser, made by GNU Bison 3.5.1.
+// A Bison parser, made by GNU Bison 3.8.2.
 
 // Skeleton implementation for Bison LALR(1) parsers in C++
 
-// Copyright (C) 2002-2015, 2018-2020 Free Software Foundation, Inc.
+// Copyright (C) 2002-2015, 2018-2021 Free Software Foundation, Inc.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // As a special exception, you may create a larger work that contains
 // part or all of the Bison parser skeleton and distribute that work
@@ -30,8 +30,9 @@
 // This special exception was added by the Free Software Foundation in
 // version 2.2 of Bison.
 
-// Undocumented macros, especially those whose name start with YY_,
-// are private implementation details.  Do not rely on them.
+// DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
+// especially those whose name start with YY_ or yy_.  They are
+// private implementation details that can be changed or removed.
 
 
 
@@ -46,7 +47,7 @@
 #include "lexer.h"
 #include "syntaxdefs.h"
 
-#line 50 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 51 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
 
 
 #ifndef YY_
@@ -60,6 +61,7 @@
 #  define YY_(msgid) msgid
 # endif
 #endif
+
 
 // Whether we are compiled with exception support.
 #ifndef YY_EXCEPTIONS
@@ -116,13 +118,13 @@
 # define YY_STACK_PRINT()               \
   do {                                  \
     if (yydebug_)                       \
-      yystack_print_ ();                \
+      yy_stack_print_ ();                \
   } while (false)
 
 #else // !YYDEBUG
 
 # define YYCDEBUG if (false) std::cerr
-# define YY_SYMBOL_PRINT(Title, Symbol)  YYUSE (Symbol)
+# define YY_SYMBOL_PRINT(Title, Symbol)  YY_USE (Symbol)
 # define YY_REDUCE_PRINT(Rule)           static_cast<void> (0)
 # define YY_STACK_PRINT()                static_cast<void> (0)
 
@@ -137,49 +139,7 @@
 #define YYRECOVERING()  (!!yyerrstatus_)
 
 namespace yy {
-#line 141 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
-
-
-  /* Return YYSTR after stripping away unnecessary quotes and
-     backslashes, so that it's suitable for yyerror.  The heuristic is
-     that double-quoting is unnecessary unless the string contains an
-     apostrophe, a comma, or backslash (other than backslash-backslash).
-     YYSTR is taken from yytname.  */
-  std::string
-  GraphQLParserImpl::yytnamerr_ (const char *yystr)
-  {
-    if (*yystr == '"')
-      {
-        std::string yyr;
-        char const *yyp = yystr;
-
-        for (;;)
-          switch (*++yyp)
-            {
-            case '\'':
-            case ',':
-              goto do_not_strip_quotes;
-
-            case '\\':
-              if (*++yyp != '\\')
-                goto do_not_strip_quotes;
-              else
-                goto append;
-
-            append:
-            default:
-              yyr += *yyp;
-              break;
-
-            case '"':
-              return yyr;
-            }
-      do_not_strip_quotes: ;
-      }
-
-    return yystr;
-  }
-
+#line 143 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
 
   /// Build a parser object.
   GraphQLParserImpl::GraphQLParserImpl (bool enableSchema_yyarg, Node **outAST_yyarg, const char **outError_yyarg, void *scanner_yyarg)
@@ -201,20 +161,11 @@ namespace yy {
   GraphQLParserImpl::syntax_error::~syntax_error () YY_NOEXCEPT YY_NOTHROW
   {}
 
-  /*---------------.
-  | Symbol types.  |
-  `---------------*/
+  /*---------.
+  | symbol.  |
+  `---------*/
 
   // basic_symbol.
-#if 201103L <= YY_CPLUSPLUS
-  template <typename Base>
-  GraphQLParserImpl::basic_symbol<Base>::basic_symbol (basic_symbol&& that)
-    : Base (std::move (that))
-    , value (std::move (that.value))
-    , location (std::move (that.location))
-  {}
-#endif
-
   template <typename Base>
   GraphQLParserImpl::basic_symbol<Base>::basic_symbol (const basic_symbol& that)
     : Base (that)
@@ -232,17 +183,26 @@ namespace yy {
   {}
 
   template <typename Base>
-  GraphQLParserImpl::basic_symbol<Base>::basic_symbol (typename Base::kind_type t, YY_RVREF (semantic_type) v, YY_RVREF (location_type) l)
+  GraphQLParserImpl::basic_symbol<Base>::basic_symbol (typename Base::kind_type t, YY_RVREF (value_type) v, YY_RVREF (location_type) l)
     : Base (t)
     , value (YY_MOVE (v))
     , location (YY_MOVE (l))
   {}
 
+
+  template <typename Base>
+  GraphQLParserImpl::symbol_kind_type
+  GraphQLParserImpl::basic_symbol<Base>::type_get () const YY_NOEXCEPT
+  {
+    return this->kind ();
+  }
+
+
   template <typename Base>
   bool
   GraphQLParserImpl::basic_symbol<Base>::empty () const YY_NOEXCEPT
   {
-    return Base::type_get () == empty_symbol;
+    return this->kind () == symbol_kind::S_YYEMPTY;
   }
 
   template <typename Base>
@@ -254,45 +214,55 @@ namespace yy {
     location = YY_MOVE (s.location);
   }
 
-  // by_type.
-  GraphQLParserImpl::by_type::by_type ()
-    : type (empty_symbol)
+  // by_kind.
+  GraphQLParserImpl::by_kind::by_kind () YY_NOEXCEPT
+    : kind_ (symbol_kind::S_YYEMPTY)
   {}
 
 #if 201103L <= YY_CPLUSPLUS
-  GraphQLParserImpl::by_type::by_type (by_type&& that)
-    : type (that.type)
+  GraphQLParserImpl::by_kind::by_kind (by_kind&& that) YY_NOEXCEPT
+    : kind_ (that.kind_)
   {
     that.clear ();
   }
 #endif
 
-  GraphQLParserImpl::by_type::by_type (const by_type& that)
-    : type (that.type)
+  GraphQLParserImpl::by_kind::by_kind (const by_kind& that) YY_NOEXCEPT
+    : kind_ (that.kind_)
   {}
 
-  GraphQLParserImpl::by_type::by_type (token_type t)
-    : type (yytranslate_ (t))
+  GraphQLParserImpl::by_kind::by_kind (token_kind_type t) YY_NOEXCEPT
+    : kind_ (yytranslate_ (t))
   {}
+
+
 
   void
-  GraphQLParserImpl::by_type::clear ()
+  GraphQLParserImpl::by_kind::clear () YY_NOEXCEPT
   {
-    type = empty_symbol;
+    kind_ = symbol_kind::S_YYEMPTY;
   }
 
   void
-  GraphQLParserImpl::by_type::move (by_type& that)
+  GraphQLParserImpl::by_kind::move (by_kind& that)
   {
-    type = that.type;
+    kind_ = that.kind_;
     that.clear ();
   }
 
-  int
-  GraphQLParserImpl::by_type::type_get () const YY_NOEXCEPT
+  GraphQLParserImpl::symbol_kind_type
+  GraphQLParserImpl::by_kind::kind () const YY_NOEXCEPT
   {
-    return type;
+    return kind_;
   }
+
+
+  GraphQLParserImpl::symbol_kind_type
+  GraphQLParserImpl::by_kind::type_get () const YY_NOEXCEPT
+  {
+    return this->kind ();
+  }
+
 
 
   // by_state.
@@ -321,13 +291,13 @@ namespace yy {
     : state (s)
   {}
 
-  GraphQLParserImpl::symbol_number_type
-  GraphQLParserImpl::by_state::type_get () const YY_NOEXCEPT
+  GraphQLParserImpl::symbol_kind_type
+  GraphQLParserImpl::by_state::kind () const YY_NOEXCEPT
   {
     if (state == empty_state)
-      return empty_symbol;
+      return symbol_kind::S_YYEMPTY;
     else
-      return yystos_[+state];
+      return YY_CAST (symbol_kind_type, yystos_[+state]);
   }
 
   GraphQLParserImpl::stack_symbol_type::stack_symbol_type ()
@@ -346,7 +316,7 @@ namespace yy {
     : super_type (s, YY_MOVE (that.value), YY_MOVE (that.location))
   {
     // that is emptied.
-    that.type = empty_symbol;
+    that.kind_ = symbol_kind::S_YYEMPTY;
   }
 
 #if YY_CPLUSPLUS < 201103L
@@ -379,612 +349,612 @@ namespace yy {
       YY_SYMBOL_PRINT (yymsg, yysym);
 
     // User destructor.
-    switch (yysym.type_get ())
+    switch (yysym.kind ())
     {
-      case 3: // "directive"
+      case symbol_kind::S_DIRECTIVE: // "directive"
 #line 289 "parser.ypp"
                     { }
-#line 388 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 358 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 4: // "enum"
+      case symbol_kind::S_ENUM: // "enum"
 #line 289 "parser.ypp"
                     { }
-#line 394 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 364 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 5: // "extend"
+      case symbol_kind::S_EXTEND: // "extend"
 #line 289 "parser.ypp"
                     { }
-#line 400 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 370 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 6: // "false"
+      case symbol_kind::S_FALSE: // "false"
 #line 289 "parser.ypp"
                     { }
-#line 406 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 376 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 7: // "fragment"
+      case symbol_kind::S_FRAGMENT: // "fragment"
 #line 289 "parser.ypp"
                     { }
-#line 412 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 382 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 8: // "implements"
+      case symbol_kind::S_IMPLEMENTS: // "implements"
 #line 289 "parser.ypp"
                     { }
-#line 418 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 388 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 9: // "input"
+      case symbol_kind::S_INPUT: // "input"
 #line 289 "parser.ypp"
                     { }
-#line 424 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 394 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 10: // "interface"
+      case symbol_kind::S_INTERFACE: // "interface"
 #line 289 "parser.ypp"
                     { }
-#line 430 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 400 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 11: // "mutation"
+      case symbol_kind::S_MUTATION: // "mutation"
 #line 289 "parser.ypp"
                     { }
-#line 436 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 406 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 12: // "null"
+      case symbol_kind::S_NULL: // "null"
 #line 289 "parser.ypp"
                     { }
-#line 442 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 412 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 13: // "query"
+      case symbol_kind::S_QUERY: // "query"
 #line 289 "parser.ypp"
                     { }
-#line 448 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 418 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 14: // "on"
+      case symbol_kind::S_ON: // "on"
 #line 289 "parser.ypp"
                     { }
-#line 454 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 424 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 15: // "scalar"
+      case symbol_kind::S_SCALAR: // "scalar"
 #line 289 "parser.ypp"
                     { }
-#line 460 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 430 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 16: // "schema"
+      case symbol_kind::S_SCHEMA: // "schema"
 #line 289 "parser.ypp"
                     { }
-#line 466 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 436 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 17: // "subscription"
+      case symbol_kind::S_SUBSCRIPTION: // "subscription"
 #line 289 "parser.ypp"
                     { }
-#line 472 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 442 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 18: // "true"
+      case symbol_kind::S_TRUE: // "true"
 #line 289 "parser.ypp"
                     { }
-#line 478 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 448 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 19: // "type"
+      case symbol_kind::S_TYPE: // "type"
 #line 289 "parser.ypp"
                     { }
-#line 484 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 454 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 20: // "union"
+      case symbol_kind::S_UNION: // "union"
 #line 289 "parser.ypp"
                     { }
-#line 490 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 460 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 33: // VARIABLE
+      case symbol_kind::S_VARIABLE: // VARIABLE
 #line 289 "parser.ypp"
                     { }
-#line 496 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 466 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 34: // INTEGER
+      case symbol_kind::S_INTEGER: // INTEGER
 #line 289 "parser.ypp"
                     { }
-#line 502 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 472 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 35: // FLOAT
+      case symbol_kind::S_FLOAT: // FLOAT
 #line 289 "parser.ypp"
                     { }
-#line 508 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 478 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 36: // STRING
+      case symbol_kind::S_STRING: // STRING
 #line 289 "parser.ypp"
                     { }
-#line 514 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 484 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 37: // IDENTIFIER
+      case symbol_kind::S_IDENTIFIER: // IDENTIFIER
 #line 289 "parser.ypp"
                     { }
-#line 520 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 490 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 39: // start
+      case symbol_kind::S_start: // start
 #line 291 "parser.ypp"
                     { }
-#line 526 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 496 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 40: // fragment_name
+      case symbol_kind::S_fragment_name: // fragment_name
 #line 292 "parser.ypp"
                     { delete (yysym.value.name); }
-#line 532 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 502 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 41: // name
+      case symbol_kind::S_name: // name
 #line 292 "parser.ypp"
                     { delete (yysym.value.name); }
-#line 538 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 508 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 42: // name_opt
+      case symbol_kind::S_name_opt: // name_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.name); }
-#line 544 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 514 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 43: // document
+      case symbol_kind::S_document: // document
 #line 291 "parser.ypp"
                     { }
-#line 550 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 520 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 44: // definition_list
+      case symbol_kind::S_definition_list: // definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.definitionList); }
-#line 556 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 526 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 45: // definition
+      case symbol_kind::S_definition: // definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.definition); }
-#line 562 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 532 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 46: // schema_gate
+      case symbol_kind::S_schema_gate: // schema_gate
 #line 292 "parser.ypp"
                     { delete (yysym.value.definition); }
-#line 568 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 538 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 47: // operation_definition
+      case symbol_kind::S_operation_definition: // operation_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.operationDefinition); }
-#line 574 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 544 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 48: // operation_type
+      case symbol_kind::S_operation_type: // operation_type
 #line 290 "parser.ypp"
                     { free((void *)(yysym.value.heapStr)); }
-#line 580 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 550 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 49: // variable_definitions
+      case symbol_kind::S_variable_definitions: // variable_definitions
 #line 292 "parser.ypp"
                     { delete (yysym.value.variableDefinitionList); }
-#line 586 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 556 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 50: // variable_definition_list
+      case symbol_kind::S_variable_definition_list: // variable_definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.variableDefinitionList); }
-#line 592 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 562 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 51: // variable
+      case symbol_kind::S_variable: // variable
 #line 292 "parser.ypp"
                     { delete (yysym.value.variable); }
-#line 598 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 568 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 52: // variable_definition
+      case symbol_kind::S_variable_definition: // variable_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.variableDefinition); }
-#line 604 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 574 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 53: // default_value_opt
+      case symbol_kind::S_default_value_opt: // default_value_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.value); }
-#line 610 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 580 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 54: // default_value
+      case symbol_kind::S_default_value: // default_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.value); }
-#line 616 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 586 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 55: // selection_set
+      case symbol_kind::S_selection_set: // selection_set
 #line 292 "parser.ypp"
                     { delete (yysym.value.selectionSet); }
-#line 622 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 592 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 56: // selection_set_opt
+      case symbol_kind::S_selection_set_opt: // selection_set_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.selectionSet); }
-#line 628 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 598 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 57: // selection_list
+      case symbol_kind::S_selection_list: // selection_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.selectionList); }
-#line 634 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 604 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 58: // selection
+      case symbol_kind::S_selection: // selection
 #line 292 "parser.ypp"
                     { delete (yysym.value.selection); }
-#line 640 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 610 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 59: // field
+      case symbol_kind::S_field: // field
 #line 292 "parser.ypp"
                     { delete (yysym.value.field); }
-#line 646 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 616 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 60: // arguments
+      case symbol_kind::S_arguments: // arguments
 #line 292 "parser.ypp"
                     { delete (yysym.value.argumentList); }
-#line 652 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 622 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 61: // arguments_opt
+      case symbol_kind::S_arguments_opt: // arguments_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.argumentList); }
-#line 658 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 628 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 62: // argument_list
+      case symbol_kind::S_argument_list: // argument_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.argumentList); }
-#line 664 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 634 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 63: // argument
+      case symbol_kind::S_argument: // argument
 #line 292 "parser.ypp"
                     { delete (yysym.value.argument); }
-#line 670 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 640 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 64: // fragment_spread
+      case symbol_kind::S_fragment_spread: // fragment_spread
 #line 292 "parser.ypp"
                     { delete (yysym.value.fragmentSpread); }
-#line 676 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 646 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 65: // inline_fragment
+      case symbol_kind::S_inline_fragment: // inline_fragment
 #line 292 "parser.ypp"
                     { delete (yysym.value.inlineFragment); }
-#line 682 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 652 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 66: // fragment_definition
+      case symbol_kind::S_fragment_definition: // fragment_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.fragmentDefinition); }
-#line 688 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 658 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 67: // type_condition
+      case symbol_kind::S_type_condition: // type_condition
 #line 292 "parser.ypp"
                     { delete (yysym.value.namedType); }
-#line 694 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 664 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 68: // value
+      case symbol_kind::S_value: // value
 #line 292 "parser.ypp"
                     { delete (yysym.value.value); }
-#line 700 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 670 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 69: // int_value
+      case symbol_kind::S_int_value: // int_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.intValue); }
-#line 706 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 676 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 70: // float_value
+      case symbol_kind::S_float_value: // float_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.floatValue); }
-#line 712 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 682 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 71: // string_value
+      case symbol_kind::S_string_value: // string_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.stringValue); }
-#line 718 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 688 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 72: // value_const
+      case symbol_kind::S_value_const: // value_const
 #line 292 "parser.ypp"
                     { delete (yysym.value.value); }
-#line 724 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 694 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 73: // boolean_value
+      case symbol_kind::S_boolean_value: // boolean_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.booleanValue); }
-#line 730 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 700 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 74: // null_value
+      case symbol_kind::S_null_value: // null_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.nullValue); }
-#line 736 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 706 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 75: // enum_value
+      case symbol_kind::S_enum_value: // enum_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.enumValue); }
-#line 742 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 712 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 76: // list_value
+      case symbol_kind::S_list_value: // list_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.arrayValue); }
-#line 748 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 718 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 77: // value_list
+      case symbol_kind::S_value_list: // value_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.valueList); }
-#line 754 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 724 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 78: // list_value_const
+      case symbol_kind::S_list_value_const: // list_value_const
 #line 292 "parser.ypp"
                     { delete (yysym.value.arrayValue); }
-#line 760 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 730 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 79: // value_const_list
+      case symbol_kind::S_value_const_list: // value_const_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.valueList); }
-#line 766 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 736 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 80: // object_value
+      case symbol_kind::S_object_value: // object_value
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectValue); }
-#line 772 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 742 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 81: // object_field_list
+      case symbol_kind::S_object_field_list: // object_field_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectFieldList); }
-#line 778 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 748 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 82: // object_field
+      case symbol_kind::S_object_field: // object_field
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectField); }
-#line 784 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 754 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 83: // object_value_const
+      case symbol_kind::S_object_value_const: // object_value_const
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectValue); }
-#line 790 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 760 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 84: // object_field_const_list
+      case symbol_kind::S_object_field_const_list: // object_field_const_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectFieldList); }
-#line 796 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 766 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 85: // object_field_const
+      case symbol_kind::S_object_field_const: // object_field_const
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectField); }
-#line 802 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 772 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 86: // directives
+      case symbol_kind::S_directives: // directives
 #line 292 "parser.ypp"
                     { delete (yysym.value.directiveList); }
-#line 808 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 778 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 87: // directives_opt
+      case symbol_kind::S_directives_opt: // directives_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.directiveList); }
-#line 814 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 784 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 88: // directive_list
+      case symbol_kind::S_directive_list: // directive_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.directiveList); }
-#line 820 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 790 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 89: // directive
+      case symbol_kind::S_directive: // directive
 #line 292 "parser.ypp"
                     { delete (yysym.value.directive); }
-#line 826 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 796 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 90: // type
+      case symbol_kind::S_type: // type
 #line 292 "parser.ypp"
                     { delete (yysym.value.type); }
-#line 832 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 802 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 91: // type_name
+      case symbol_kind::S_type_name: // type_name
 #line 292 "parser.ypp"
                     { delete (yysym.value.namedType); }
-#line 838 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 808 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 92: // list_type
+      case symbol_kind::S_list_type: // list_type
 #line 292 "parser.ypp"
                     { delete (yysym.value.listType); }
-#line 844 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 814 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 93: // non_null_type
+      case symbol_kind::S_non_null_type: // non_null_type
 #line 292 "parser.ypp"
                     { delete (yysym.value.nonNullType); }
-#line 850 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 820 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 94: // schema_definition
+      case symbol_kind::S_schema_definition: // schema_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.schemaDefinition); }
-#line 856 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 826 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 95: // operation_type_definition_list
+      case symbol_kind::S_operation_type_definition_list: // operation_type_definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.operationTypeDefinitionList); }
-#line 862 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 832 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 96: // operation_type_definition
+      case symbol_kind::S_operation_type_definition: // operation_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.operationTypeDefinition); }
-#line 868 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 838 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 97: // scalar_type_definition
+      case symbol_kind::S_scalar_type_definition: // scalar_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.scalarTypeDefinition); }
-#line 874 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 844 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 98: // object_type_definition
+      case symbol_kind::S_object_type_definition: // object_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.objectTypeDefinition); }
-#line 880 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 850 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 99: // implements_interfaces_opt
+      case symbol_kind::S_implements_interfaces_opt: // implements_interfaces_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.typeNameList); }
-#line 886 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 856 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 100: // type_name_list
+      case symbol_kind::S_type_name_list: // type_name_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.typeNameList); }
-#line 892 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 862 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 101: // field_definition
+      case symbol_kind::S_field_definition: // field_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.fieldDefinition); }
-#line 898 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 868 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 102: // field_definition_list
+      case symbol_kind::S_field_definition_list: // field_definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.fieldDefinitionList); }
-#line 904 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 874 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 103: // arguments_definition_opt
+      case symbol_kind::S_arguments_definition_opt: // arguments_definition_opt
 #line 292 "parser.ypp"
                     { delete (yysym.value.inputValueDefinitionList); }
-#line 910 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 880 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 104: // arguments_definition
+      case symbol_kind::S_arguments_definition: // arguments_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.inputValueDefinitionList); }
-#line 916 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 886 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 105: // input_value_definition_list
+      case symbol_kind::S_input_value_definition_list: // input_value_definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.inputValueDefinitionList); }
-#line 922 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 892 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 106: // input_value_definition
+      case symbol_kind::S_input_value_definition: // input_value_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.inputValueDefinition); }
-#line 928 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 898 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 107: // interface_type_definition
+      case symbol_kind::S_interface_type_definition: // interface_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.interfaceTypeDefinition); }
-#line 934 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 904 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 108: // union_type_definition
+      case symbol_kind::S_union_type_definition: // union_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.unionTypeDefinition); }
-#line 940 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 910 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 109: // union_members
+      case symbol_kind::S_union_members: // union_members
 #line 292 "parser.ypp"
                     { delete (yysym.value.typeNameList); }
-#line 946 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 916 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 110: // enum_type_definition
+      case symbol_kind::S_enum_type_definition: // enum_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.enumTypeDefinition); }
-#line 952 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 922 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 111: // enum_value_definition
+      case symbol_kind::S_enum_value_definition: // enum_value_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.enumValueDefinition); }
-#line 958 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 928 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 112: // enum_value_definition_list
+      case symbol_kind::S_enum_value_definition_list: // enum_value_definition_list
 #line 292 "parser.ypp"
                     { delete (yysym.value.enumValueDefinitionList); }
-#line 964 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 934 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 113: // input_object_type_definition
+      case symbol_kind::S_input_object_type_definition: // input_object_type_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.inputObjectTypeDefinition); }
-#line 970 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 940 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 114: // type_extension_definition
+      case symbol_kind::S_type_extension_definition: // type_extension_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.typeExtensionDefinition); }
-#line 976 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 946 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 115: // directive_definition
+      case symbol_kind::S_directive_definition: // directive_definition
 #line 292 "parser.ypp"
                     { delete (yysym.value.directiveDefinition); }
-#line 982 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 952 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 116: // directive_locations
+      case symbol_kind::S_directive_locations: // directive_locations
 #line 292 "parser.ypp"
                     { delete (yysym.value.nameList); }
-#line 988 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 958 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
       default:
@@ -995,165 +965,163 @@ namespace yy {
 #if YYDEBUG
   template <typename Base>
   void
-  GraphQLParserImpl::yy_print_ (std::ostream& yyo,
-                                     const basic_symbol<Base>& yysym) const
+  GraphQLParserImpl::yy_print_ (std::ostream& yyo, const basic_symbol<Base>& yysym) const
   {
     std::ostream& yyoutput = yyo;
-    YYUSE (yyoutput);
-    symbol_number_type yytype = yysym.type_get ();
-#if defined __GNUC__ && ! defined __clang__ && ! defined __ICC && __GNUC__ * 100 + __GNUC_MINOR__ <= 408
-    // Avoid a (spurious) G++ 4.8 warning about "array subscript is
-    // below array bounds".
+    YY_USE (yyoutput);
     if (yysym.empty ())
-      std::abort ();
-#endif
-    yyo << (yytype < yyntokens_ ? "token" : "nterm")
-        << ' ' << yytname_[yytype] << " ("
-        << yysym.location << ": ";
-    switch (yytype)
+      yyo << "empty symbol";
+    else
+      {
+        symbol_kind_type yykind = yysym.kind ();
+        yyo << (yykind < YYNTOKENS ? "token" : "nterm")
+            << ' ' << yysym.name () << " ("
+            << yysym.location << ": ";
+        switch (yykind)
     {
-      case 3: // "directive"
+      case symbol_kind::S_DIRECTIVE: // "directive"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1019 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 986 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 4: // "enum"
+      case symbol_kind::S_ENUM: // "enum"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1025 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 992 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 5: // "extend"
+      case symbol_kind::S_EXTEND: // "extend"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1031 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 998 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 6: // "false"
+      case symbol_kind::S_FALSE: // "false"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1037 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1004 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 7: // "fragment"
+      case symbol_kind::S_FRAGMENT: // "fragment"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1043 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1010 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 8: // "implements"
+      case symbol_kind::S_IMPLEMENTS: // "implements"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1049 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1016 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 9: // "input"
+      case symbol_kind::S_INPUT: // "input"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1055 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1022 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 10: // "interface"
+      case symbol_kind::S_INTERFACE: // "interface"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1061 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1028 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 11: // "mutation"
+      case symbol_kind::S_MUTATION: // "mutation"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1067 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1034 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 12: // "null"
+      case symbol_kind::S_NULL: // "null"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1073 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1040 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 13: // "query"
+      case symbol_kind::S_QUERY: // "query"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1079 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1046 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 14: // "on"
+      case symbol_kind::S_ON: // "on"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1085 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1052 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 15: // "scalar"
+      case symbol_kind::S_SCALAR: // "scalar"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1091 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1058 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 16: // "schema"
+      case symbol_kind::S_SCHEMA: // "schema"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1097 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1064 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 17: // "subscription"
+      case symbol_kind::S_SUBSCRIPTION: // "subscription"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1103 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1070 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 18: // "true"
+      case symbol_kind::S_TRUE: // "true"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1109 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1076 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 19: // "type"
+      case symbol_kind::S_TYPE: // "type"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1115 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1082 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 20: // "union"
+      case symbol_kind::S_UNION: // "union"
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1121 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1088 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 33: // VARIABLE
+      case symbol_kind::S_VARIABLE: // VARIABLE
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1127 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1094 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 34: // INTEGER
+      case symbol_kind::S_INTEGER: // INTEGER
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1133 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1100 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 35: // FLOAT
+      case symbol_kind::S_FLOAT: // FLOAT
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1139 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1106 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 36: // STRING
+      case symbol_kind::S_STRING: // STRING
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1145 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1112 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
-      case 37: // IDENTIFIER
+      case symbol_kind::S_IDENTIFIER: // IDENTIFIER
 #line 294 "parser.ypp"
                  { yyoutput << (yysym.value.str); }
-#line 1151 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1118 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
         break;
 
       default:
         break;
     }
-    yyo << ')';
+        yyo << ')';
+      }
   }
 #endif
 
@@ -1177,7 +1145,7 @@ namespace yy {
   }
 
   void
-  GraphQLParserImpl::yypop_ (int n)
+  GraphQLParserImpl::yypop_ (int n) YY_NOEXCEPT
   {
     yystack_.pop (n);
   }
@@ -1212,21 +1180,21 @@ namespace yy {
   GraphQLParserImpl::state_type
   GraphQLParserImpl::yy_lr_goto_state_ (state_type yystate, int yysym)
   {
-    int yyr = yypgoto_[yysym - yyntokens_] + yystate;
+    int yyr = yypgoto_[yysym - YYNTOKENS] + yystate;
     if (0 <= yyr && yyr <= yylast_ && yycheck_[yyr] == yystate)
       return yytable_[yyr];
     else
-      return yydefgoto_[yysym - yyntokens_];
+      return yydefgoto_[yysym - YYNTOKENS];
   }
 
   bool
-  GraphQLParserImpl::yy_pact_value_is_default_ (int yyvalue)
+  GraphQLParserImpl::yy_pact_value_is_default_ (int yyvalue) YY_NOEXCEPT
   {
     return yyvalue == yypact_ninf_;
   }
 
   bool
-  GraphQLParserImpl::yy_table_value_is_error_ (int yyvalue)
+  GraphQLParserImpl::yy_table_value_is_error_ (int yyvalue) YY_NOEXCEPT
   {
     return yyvalue == yytable_ninf_;
   }
@@ -1276,6 +1244,7 @@ namespace yy {
   `-----------------------------------------------*/
   yynewstate:
     YYCDEBUG << "Entering state " << int (yystack_[0].state) << '\n';
+    YY_STACK_PRINT ();
 
     // Accept?
     if (yystack_[0].state == yyfinal_)
@@ -1296,12 +1265,12 @@ namespace yy {
     // Read a lookahead token.
     if (yyla.empty ())
       {
-        YYCDEBUG << "Reading a token: ";
+        YYCDEBUG << "Reading a token\n";
 #if YY_EXCEPTIONS
         try
 #endif // YY_EXCEPTIONS
           {
-            yyla.type = yytranslate_ (yylex (&yyla.value, &yyla.location, scanner));
+            yyla.kind_ = yytranslate_ (yylex (&yyla.value, &yyla.location, scanner));
           }
 #if YY_EXCEPTIONS
         catch (const syntax_error& yyexc)
@@ -1314,10 +1283,20 @@ namespace yy {
       }
     YY_SYMBOL_PRINT ("Next token is", yyla);
 
+    if (yyla.kind () == symbol_kind::S_YYerror)
+    {
+      // The scanner already issued an error message, process directly
+      // to error recovery.  But do not keep the error token as
+      // lookahead, it is too special and may lead us to an endless
+      // loop in error recovery. */
+      yyla.kind_ = symbol_kind::S_YYUNDEF;
+      goto yyerrlab1;
+    }
+
     /* If the proper action on seeing token YYLA.TYPE is to reduce or
        to detect an error, take that action.  */
-    yyn += yyla.type_get ();
-    if (yyn < 0 || yylast_ < yyn || yycheck_[yyn] != yyla.type_get ())
+    yyn += yyla.kind ();
+    if (yyn < 0 || yylast_ < yyn || yycheck_[yyn] != yyla.kind ())
       {
         goto yydefault;
       }
@@ -1385,175 +1364,175 @@ namespace yy {
         {
           switch (yyn)
             {
-  case 2:
+  case 2: // start: document
 #line 298 "parser.ypp"
                           { *outAST = (yystack_[0].value.document); }
-#line 1392 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1371 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 3:
+  case 3: // fragment_name: "directive"
 #line 303 "parser.ypp"
                           { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1398 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1377 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 4:
+  case 4: // fragment_name: "enum"
 #line 304 "parser.ypp"
                      { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1404 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1383 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 5:
+  case 5: // fragment_name: "extend"
 #line 305 "parser.ypp"
                        { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1410 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1389 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 6:
+  case 6: // fragment_name: "false"
 #line 306 "parser.ypp"
                       { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1416 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1395 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 7:
+  case 7: // fragment_name: "fragment"
 #line 307 "parser.ypp"
                          { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1422 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1401 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 8:
+  case 8: // fragment_name: IDENTIFIER
 #line 308 "parser.ypp"
                            { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1428 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1407 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 9:
+  case 9: // fragment_name: "implements"
 #line 309 "parser.ypp"
                            { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1434 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1413 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 10:
+  case 10: // fragment_name: "input"
 #line 310 "parser.ypp"
                       { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1440 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1419 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 11:
+  case 11: // fragment_name: "interface"
 #line 311 "parser.ypp"
                           { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1446 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1425 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 12:
+  case 12: // fragment_name: "mutation"
 #line 312 "parser.ypp"
                          { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1452 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1431 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 13:
+  case 13: // fragment_name: "null"
 #line 313 "parser.ypp"
                      { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1458 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1437 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 14:
+  case 14: // fragment_name: "query"
 #line 314 "parser.ypp"
                       { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1464 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1443 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 15:
+  case 15: // fragment_name: "scalar"
 #line 315 "parser.ypp"
                        { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1470 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1449 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 16:
+  case 16: // fragment_name: "schema"
 #line 316 "parser.ypp"
                        { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1476 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1455 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 17:
+  case 17: // fragment_name: "subscription"
 #line 317 "parser.ypp"
                              { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1482 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1461 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 18:
+  case 18: // fragment_name: "true"
 #line 318 "parser.ypp"
                      { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1488 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1467 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 19:
+  case 19: // fragment_name: "type"
 #line 319 "parser.ypp"
                      { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1494 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1473 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 20:
+  case 20: // fragment_name: "union"
 #line 320 "parser.ypp"
                       { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1500 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1479 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 21:
+  case 21: // name: fragment_name
 #line 323 "parser.ypp"
       { (yylhs.value.name) = (yystack_[0].value.name); }
-#line 1506 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1485 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 22:
+  case 22: // name: "on"
 #line 324 "parser.ypp"
                    { (yylhs.value.name) = new Name(yystack_[0].location, strdup((yystack_[0].value.str))); }
-#line 1512 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1491 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 23:
+  case 23: // name_opt: %empty
 #line 328 "parser.ypp"
                        {(yylhs.value.name) = nullptr;}
-#line 1518 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1497 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 24:
+  case 24: // name_opt: name
 #line 329 "parser.ypp"
                 { (yylhs.value.name) = (yystack_[0].value.name); }
-#line 1524 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1503 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 25:
+  case 25: // document: definition_list
 #line 334 "parser.ypp"
                                 { (yylhs.value.document) = new Document(yylhs.location, (yystack_[0].value.definitionList)); }
-#line 1530 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1509 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 26:
+  case 26: // definition_list: definition
 #line 337 "parser.ypp"
                            { (yylhs.value.definitionList) = new std::vector<std::unique_ptr<Definition>>(); (yylhs.value.definitionList)->emplace_back((yystack_[0].value.definition)); }
-#line 1536 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1515 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 27:
+  case 27: // definition_list: definition_list definition
 #line 338 "parser.ypp"
                                            { (yystack_[1].value.definitionList)->emplace_back((yystack_[0].value.definition)); (yylhs.value.definitionList) = (yystack_[1].value.definitionList); }
-#line 1542 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1521 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 28:
+  case 28: // definition: operation_definition
 #line 341 "parser.ypp"
                                      { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.operationDefinition)); }
-#line 1548 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1527 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 29:
+  case 29: // definition: fragment_definition
 #line 342 "parser.ypp"
                                     { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.fragmentDefinition)); }
-#line 1554 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1533 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 30:
+  case 30: // definition: schema_gate
 #line 343 "parser.ypp"
                             {
             if (!enableSchema) {
@@ -1565,899 +1544,899 @@ namespace yy {
             }
             (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.definition));
           }
-#line 1569 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1548 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 31:
+  case 31: // schema_gate: schema_definition
 #line 355 "parser.ypp"
                                   { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.schemaDefinition)); }
-#line 1575 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1554 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 32:
+  case 32: // schema_gate: scalar_type_definition
 #line 356 "parser.ypp"
                                        { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.scalarTypeDefinition)); }
-#line 1581 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1560 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 33:
+  case 33: // schema_gate: object_type_definition
 #line 357 "parser.ypp"
                                        { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.objectTypeDefinition)); }
-#line 1587 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1566 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 34:
+  case 34: // schema_gate: interface_type_definition
 #line 358 "parser.ypp"
                                           { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.interfaceTypeDefinition)); }
-#line 1593 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1572 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 35:
+  case 35: // schema_gate: union_type_definition
 #line 359 "parser.ypp"
                                       { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.unionTypeDefinition)); }
-#line 1599 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1578 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 36:
+  case 36: // schema_gate: enum_type_definition
 #line 360 "parser.ypp"
                                      { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.enumTypeDefinition)); }
-#line 1605 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1584 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 37:
+  case 37: // schema_gate: input_object_type_definition
 #line 361 "parser.ypp"
                                              { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.inputObjectTypeDefinition)); }
-#line 1611 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1590 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 38:
+  case 38: // schema_gate: type_extension_definition
 #line 362 "parser.ypp"
                                           { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.typeExtensionDefinition)); }
-#line 1617 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1596 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 39:
+  case 39: // schema_gate: directive_definition
 #line 363 "parser.ypp"
                                      { (yylhs.value.definition) = static_cast<Definition *>((yystack_[0].value.directiveDefinition)); }
-#line 1623 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1602 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 40:
+  case 40: // operation_definition: selection_set
 #line 369 "parser.ypp"
                               { (yylhs.value.operationDefinition) = new OperationDefinition(yylhs.location, strdup("query"), nullptr, nullptr, nullptr, (yystack_[0].value.selectionSet)); }
-#line 1629 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1608 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 41:
+  case 41: // operation_definition: operation_type name_opt selection_set
 #line 370 "parser.ypp"
                                                       { (yylhs.value.operationDefinition) = new OperationDefinition(yylhs.location, (yystack_[2].value.heapStr), (yystack_[1].value.name), nullptr, nullptr, (yystack_[0].value.selectionSet)); }
-#line 1635 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1614 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 42:
+  case 42: // operation_definition: operation_type name_opt variable_definitions selection_set
 #line 371 "parser.ypp"
                                                                            { (yylhs.value.operationDefinition) = new OperationDefinition(yylhs.location, (yystack_[3].value.heapStr), (yystack_[2].value.name), (yystack_[1].value.variableDefinitionList), nullptr, (yystack_[0].value.selectionSet)); }
-#line 1641 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1620 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 43:
+  case 43: // operation_definition: operation_type name_opt directives selection_set
 #line 372 "parser.ypp"
                                                                  { (yylhs.value.operationDefinition) = new OperationDefinition(yylhs.location, (yystack_[3].value.heapStr), (yystack_[2].value.name), nullptr, (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1647 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1626 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 44:
+  case 44: // operation_definition: operation_type name_opt variable_definitions directives selection_set
 #line 373 "parser.ypp"
                                                                                       { (yylhs.value.operationDefinition) = new OperationDefinition(yylhs.location, (yystack_[4].value.heapStr), (yystack_[3].value.name), (yystack_[2].value.variableDefinitionList), (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1653 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1632 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 45:
+  case 45: // operation_type: "query"
 #line 376 "parser.ypp"
                       { (yylhs.value.heapStr) = strdup((yystack_[0].value.str)); }
-#line 1659 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1638 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 46:
+  case 46: // operation_type: "mutation"
 #line 377 "parser.ypp"
                          { (yylhs.value.heapStr) = strdup((yystack_[0].value.str)); }
-#line 1665 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1644 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 47:
+  case 47: // operation_type: "subscription"
 #line 378 "parser.ypp"
                              { (yylhs.value.heapStr) = strdup((yystack_[0].value.str)); }
-#line 1671 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1650 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 48:
+  case 48: // variable_definitions: "(" variable_definition_list ")"
 #line 382 "parser.ypp"
                                                  { (yylhs.value.variableDefinitionList) = (yystack_[1].value.variableDefinitionList); }
-#line 1677 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1656 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 49:
+  case 49: // variable_definition_list: variable_definition
 #line 386 "parser.ypp"
                                     { (yylhs.value.variableDefinitionList) = new std::vector<std::unique_ptr<VariableDefinition>>(); (yylhs.value.variableDefinitionList)->emplace_back((yystack_[0].value.variableDefinition)); }
-#line 1683 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1662 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 50:
+  case 50: // variable_definition_list: variable_definition_list variable_definition
 #line 387 "parser.ypp"
                                                              { (yystack_[1].value.variableDefinitionList)->emplace_back((yystack_[0].value.variableDefinition)); (yylhs.value.variableDefinitionList) = (yystack_[1].value.variableDefinitionList); }
-#line 1689 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1668 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 51:
+  case 51: // variable: VARIABLE
 #line 390 "parser.ypp"
                          { (yylhs.value.variable) = new Variable(yylhs.location, new Name(yystack_[0].location, strdup((yystack_[0].value.str)))); }
-#line 1695 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1674 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 52:
+  case 52: // variable_definition: variable ":" type default_value_opt
 #line 394 "parser.ypp"
                                                     { (yylhs.value.variableDefinition) = new VariableDefinition(yylhs.location, (yystack_[3].value.variable), (yystack_[1].value.type), (yystack_[0].value.value)); }
-#line 1701 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1680 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 53:
+  case 53: // default_value_opt: %empty
 #line 398 "parser.ypp"
                        { (yylhs.value.value) = nullptr; }
-#line 1707 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1686 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 54:
+  case 54: // default_value_opt: default_value
 #line 399 "parser.ypp"
                 { (yylhs.value.value) = (yystack_[0].value.value); }
-#line 1713 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1692 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 55:
+  case 55: // default_value: "=" value_const
 #line 402 "parser.ypp"
                                 { (yylhs.value.value) = (yystack_[0].value.value); }
-#line 1719 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1698 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 56:
+  case 56: // selection_set: "{" selection_list "}"
 #line 406 "parser.ypp"
                                          { (yylhs.value.selectionSet) = new SelectionSet(yylhs.location, (yystack_[1].value.selectionList)); }
-#line 1725 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1704 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 57:
+  case 57: // selection_set_opt: %empty
 #line 410 "parser.ypp"
                        { (yylhs.value.selectionSet) = nullptr; }
-#line 1731 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1710 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 58:
+  case 58: // selection_set_opt: selection_set
 #line 411 "parser.ypp"
                 { (yylhs.value.selectionSet) = (yystack_[0].value.selectionSet); }
-#line 1737 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1716 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 59:
+  case 59: // selection_list: selection
 #line 413 "parser.ypp"
                           { (yylhs.value.selectionList) = new std::vector<std::unique_ptr<Selection>>(); (yylhs.value.selectionList)->emplace_back((yystack_[0].value.selection)); }
-#line 1743 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1722 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 60:
+  case 60: // selection_list: selection_list selection
 #line 414 "parser.ypp"
                                          { (yystack_[1].value.selectionList)->emplace_back((yystack_[0].value.selection)); (yylhs.value.selectionList) = (yystack_[1].value.selectionList); }
-#line 1749 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1728 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 61:
+  case 61: // selection: field
 #line 417 "parser.ypp"
                       { (yylhs.value.selection) = static_cast<Selection *>((yystack_[0].value.field)); }
-#line 1755 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1734 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 62:
+  case 62: // selection: fragment_spread
 #line 418 "parser.ypp"
                                 { (yylhs.value.selection) = static_cast<Selection *>((yystack_[0].value.fragmentSpread)); }
-#line 1761 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1740 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 63:
+  case 63: // selection: inline_fragment
 #line 419 "parser.ypp"
                                 { (yylhs.value.selection) = static_cast<Selection *>((yystack_[0].value.inlineFragment)); }
-#line 1767 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1746 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 64:
+  case 64: // field: name arguments_opt directives_opt selection_set_opt
 #line 422 "parser.ypp"
                                                                     { (yylhs.value.field) = new Field(yylhs.location, nullptr, (yystack_[3].value.name), (yystack_[2].value.argumentList), (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1773 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1752 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 65:
+  case 65: // field: name ":" name arguments_opt directives_opt selection_set_opt
 #line 423 "parser.ypp"
                                                                              { (yylhs.value.field) = new Field(yylhs.location, (yystack_[5].value.name), (yystack_[3].value.name), (yystack_[2].value.argumentList), (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1779 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1758 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 66:
+  case 66: // arguments: "(" argument_list ")"
 #line 426 "parser.ypp"
                                       { (yylhs.value.argumentList) = (yystack_[1].value.argumentList); }
-#line 1785 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1764 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 67:
+  case 67: // arguments_opt: %empty
 #line 429 "parser.ypp"
                        { (yylhs.value.argumentList) = nullptr; }
-#line 1791 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1770 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 68:
+  case 68: // arguments_opt: arguments
 #line 430 "parser.ypp"
                           { (yylhs.value.argumentList) = (yystack_[0].value.argumentList); }
-#line 1797 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1776 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 69:
+  case 69: // argument_list: argument
 #line 433 "parser.ypp"
                          { (yylhs.value.argumentList) = new std::vector<std::unique_ptr<Argument>>(); (yylhs.value.argumentList)->emplace_back((yystack_[0].value.argument)); }
-#line 1803 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1782 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 70:
+  case 70: // argument_list: argument_list argument
 #line 434 "parser.ypp"
                                        { (yystack_[1].value.argumentList)->emplace_back((yystack_[0].value.argument)); (yylhs.value.argumentList) = (yystack_[1].value.argumentList); }
-#line 1809 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1788 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 71:
+  case 71: // argument: name ":" value
 #line 437 "parser.ypp"
                                { (yylhs.value.argument) = new Argument(yylhs.location, (yystack_[2].value.name), (yystack_[0].value.value)); }
-#line 1815 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1794 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 72:
+  case 72: // fragment_spread: "..." fragment_name directives_opt
 #line 442 "parser.ypp"
                                                    { (yylhs.value.fragmentSpread) = new FragmentSpread(yylhs.location, (yystack_[1].value.name), (yystack_[0].value.directiveList)); }
-#line 1821 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1800 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 73:
+  case 73: // inline_fragment: "..." "on" type_condition directives_opt selection_set
 #line 446 "parser.ypp"
                                                                        { (yylhs.value.inlineFragment) = new InlineFragment(yylhs.location, (yystack_[2].value.namedType), (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1827 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1806 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 74:
+  case 74: // inline_fragment: "..." directives_opt selection_set
 #line 447 "parser.ypp"
                                                    { (yylhs.value.inlineFragment) = new InlineFragment(yylhs.location, nullptr, (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1833 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1812 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 75:
+  case 75: // fragment_definition: "fragment" fragment_name "on" type_condition directives_opt selection_set
 #line 451 "parser.ypp"
                                                                                           { (yylhs.value.fragmentDefinition) = new FragmentDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[2].value.namedType), (yystack_[1].value.directiveList), (yystack_[0].value.selectionSet)); }
-#line 1839 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1818 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 76:
+  case 76: // type_condition: type_name
 #line 454 "parser.ypp"
                 { (yylhs.value.namedType) = (yystack_[0].value.namedType); }
-#line 1845 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1824 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 77:
+  case 77: // value: variable
 #line 458 "parser.ypp"
                          { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.variable)); }
-#line 1851 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1830 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 78:
+  case 78: // value: int_value
 #line 459 "parser.ypp"
                           { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.intValue)); }
-#line 1857 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1836 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 79:
+  case 79: // value: float_value
 #line 460 "parser.ypp"
                             { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.floatValue)); }
-#line 1863 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1842 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 80:
+  case 80: // value: string_value
 #line 461 "parser.ypp"
                              { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.stringValue)); }
-#line 1869 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1848 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 81:
+  case 81: // value: boolean_value
 #line 462 "parser.ypp"
                               { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.booleanValue)); }
-#line 1875 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1854 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 82:
+  case 82: // value: null_value
 #line 463 "parser.ypp"
                            { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.nullValue)); }
-#line 1881 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1860 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 83:
+  case 83: // value: enum_value
 #line 464 "parser.ypp"
                            { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.enumValue)); }
-#line 1887 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1866 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 84:
+  case 84: // value: list_value
 #line 465 "parser.ypp"
                            { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.arrayValue)); }
-#line 1893 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1872 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 85:
+  case 85: // value: object_value
 #line 466 "parser.ypp"
                              { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.objectValue)); }
-#line 1899 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1878 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 86:
+  case 86: // int_value: INTEGER
 #line 469 "parser.ypp"
                         { (yylhs.value.intValue) = new IntValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 1905 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1884 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 87:
+  case 87: // float_value: FLOAT
 #line 472 "parser.ypp"
                       { (yylhs.value.floatValue) = new FloatValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 1911 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1890 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 88:
+  case 88: // string_value: STRING
 #line 475 "parser.ypp"
                        { (yylhs.value.stringValue) = new StringValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 1917 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1896 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 89:
+  case 89: // value_const: int_value
 #line 478 "parser.ypp"
                           { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.intValue)); }
-#line 1923 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1902 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 90:
+  case 90: // value_const: float_value
 #line 479 "parser.ypp"
                             { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.floatValue)); }
-#line 1929 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1908 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 91:
+  case 91: // value_const: string_value
 #line 480 "parser.ypp"
                              { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.stringValue)); }
-#line 1935 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1914 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 92:
+  case 92: // value_const: boolean_value
 #line 481 "parser.ypp"
                               { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.booleanValue)); }
-#line 1941 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1920 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 93:
+  case 93: // value_const: null_value
 #line 482 "parser.ypp"
                            { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.nullValue)); }
-#line 1947 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1926 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 94:
+  case 94: // value_const: enum_value
 #line 483 "parser.ypp"
                            { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.enumValue)); }
-#line 1953 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1932 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 95:
+  case 95: // value_const: list_value_const
 #line 484 "parser.ypp"
                                  { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.arrayValue)); }
-#line 1959 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1938 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 96:
+  case 96: // value_const: object_value_const
 #line 485 "parser.ypp"
                                    { (yylhs.value.value) = static_cast<Value *>((yystack_[0].value.objectValue)); }
-#line 1965 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1944 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 97:
+  case 97: // boolean_value: "true"
 #line 488 "parser.ypp"
                      { (yylhs.value.booleanValue) = new BooleanValue(yylhs.location, true); }
-#line 1971 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1950 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 98:
+  case 98: // boolean_value: "false"
 #line 489 "parser.ypp"
                       { (yylhs.value.booleanValue) = new BooleanValue(yylhs.location, false); }
-#line 1977 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1956 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 99:
+  case 99: // null_value: "null"
 #line 492 "parser.ypp"
                      { (yylhs.value.nullValue) = new NullValue(yylhs.location); }
-#line 1983 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1962 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 100:
+  case 100: // enum_value: "directive"
 #line 495 "parser.ypp"
                           { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 1989 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1968 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 101:
+  case 101: // enum_value: "enum"
 #line 496 "parser.ypp"
                      { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 1995 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1974 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 102:
+  case 102: // enum_value: "extend"
 #line 497 "parser.ypp"
                        { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2001 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1980 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 103:
+  case 103: // enum_value: "fragment"
 #line 498 "parser.ypp"
                          { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2007 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1986 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 104:
+  case 104: // enum_value: IDENTIFIER
 #line 499 "parser.ypp"
                            { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2013 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1992 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 105:
+  case 105: // enum_value: "implements"
 #line 500 "parser.ypp"
                            { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2019 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 1998 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 106:
+  case 106: // enum_value: "input"
 #line 501 "parser.ypp"
                       { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2025 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2004 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 107:
+  case 107: // enum_value: "interface"
 #line 502 "parser.ypp"
                           { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2031 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2010 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 108:
+  case 108: // enum_value: "mutation"
 #line 503 "parser.ypp"
                          { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2037 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2016 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 109:
+  case 109: // enum_value: "on"
 #line 504 "parser.ypp"
                    { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2043 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2022 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 110:
+  case 110: // enum_value: "query"
 #line 505 "parser.ypp"
                       { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2049 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2028 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 111:
+  case 111: // enum_value: "scalar"
 #line 506 "parser.ypp"
                        { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2055 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2034 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 112:
+  case 112: // enum_value: "schema"
 #line 507 "parser.ypp"
                        { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2061 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2040 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 113:
+  case 113: // enum_value: "subscription"
 #line 508 "parser.ypp"
                              { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2067 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2046 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 114:
+  case 114: // enum_value: "type"
 #line 509 "parser.ypp"
                      { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2073 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2052 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 115:
+  case 115: // enum_value: "union"
 #line 510 "parser.ypp"
                       { (yylhs.value.enumValue) = new EnumValue(yylhs.location, strdup((yystack_[0].value.str))); }
-#line 2079 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2058 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 116:
+  case 116: // list_value: "[" "]"
 #line 517 "parser.ypp"
                        { (yylhs.value.arrayValue) = new ListValue(yylhs.location, new std::vector<std::unique_ptr<Value>>()); }
-#line 2085 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2064 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 117:
+  case 117: // list_value: "[" value_list "]"
 #line 518 "parser.ypp"
                                    { (yylhs.value.arrayValue) = new ListValue(yylhs.location, (yystack_[1].value.valueList)); }
-#line 2091 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2070 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 118:
+  case 118: // value_list: value
 #line 521 "parser.ypp"
                       { (yylhs.value.valueList) = new std::vector<std::unique_ptr<Value>>(); (yylhs.value.valueList)->emplace_back((yystack_[0].value.value)); }
-#line 2097 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2076 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 119:
+  case 119: // value_list: value_list value
 #line 522 "parser.ypp"
                                  { (yystack_[1].value.valueList)->emplace_back((yystack_[0].value.value)); (yylhs.value.valueList) = (yystack_[1].value.valueList); }
-#line 2103 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2082 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 120:
+  case 120: // list_value_const: "[" "]"
 #line 526 "parser.ypp"
                         { (yylhs.value.arrayValue) = new ListValue(yylhs.location, new std::vector<std::unique_ptr<Value>>()); }
-#line 2109 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2088 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 121:
+  case 121: // list_value_const: "[" value_const_list "]"
 #line 527 "parser.ypp"
                                          { (yylhs.value.arrayValue) = new ListValue(yylhs.location, (yystack_[1].value.valueList)); }
-#line 2115 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2094 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 122:
+  case 122: // value_const_list: value_const
 #line 531 "parser.ypp"
                             { (yylhs.value.valueList) = new std::vector<std::unique_ptr<Value>>(); (yylhs.value.valueList)->emplace_back((yystack_[0].value.value)); }
-#line 2121 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2100 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 123:
+  case 123: // value_const_list: value_const_list value_const
 #line 532 "parser.ypp"
                                              { (yystack_[1].value.valueList)->emplace_back((yystack_[0].value.value)); (yylhs.value.valueList) = (yystack_[1].value.valueList); }
-#line 2127 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2106 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 124:
+  case 124: // object_value: "{" "}"
 #line 537 "parser.ypp"
                         { (yylhs.value.objectValue) = new ObjectValue(yylhs.location, new std::vector<std::unique_ptr<ObjectField>>()); }
-#line 2133 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2112 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 125:
+  case 125: // object_value: "{" object_field_list "}"
 #line 538 "parser.ypp"
                                           { (yylhs.value.objectValue) = new ObjectValue(yylhs.location, (yystack_[1].value.objectFieldList)); }
-#line 2139 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2118 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 126:
+  case 126: // object_field_list: object_field
 #line 542 "parser.ypp"
                              { (yylhs.value.objectFieldList) = new std::vector<std::unique_ptr<ObjectField>>(); (yylhs.value.objectFieldList)->emplace_back((yystack_[0].value.objectField)); }
-#line 2145 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2124 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 127:
+  case 127: // object_field_list: object_field_list object_field
 #line 543 "parser.ypp"
                                                { (yystack_[1].value.objectFieldList)->emplace_back((yystack_[0].value.objectField)); (yylhs.value.objectFieldList) = (yystack_[1].value.objectFieldList); }
-#line 2151 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2130 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 128:
+  case 128: // object_field: name ":" value
 #line 546 "parser.ypp"
                                { (yylhs.value.objectField) = new ObjectField(yylhs.location, (yystack_[2].value.name), (yystack_[0].value.value)); }
-#line 2157 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2136 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 129:
+  case 129: // object_value_const: "{" "}"
 #line 550 "parser.ypp"
                         { (yylhs.value.objectValue) = new ObjectValue(yylhs.location, new std::vector<std::unique_ptr<ObjectField>>()); }
-#line 2163 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2142 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 130:
+  case 130: // object_value_const: "{" object_field_const_list "}"
 #line 551 "parser.ypp"
                                                 { (yylhs.value.objectValue) = new ObjectValue(yylhs.location, (yystack_[1].value.objectFieldList)); }
-#line 2169 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2148 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 131:
+  case 131: // object_field_const_list: object_field_const
 #line 555 "parser.ypp"
                                    { (yylhs.value.objectFieldList) = new std::vector<std::unique_ptr<ObjectField>>(); (yylhs.value.objectFieldList)->emplace_back((yystack_[0].value.objectField)); }
-#line 2175 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2154 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 132:
+  case 132: // object_field_const_list: object_field_const_list object_field_const
 #line 556 "parser.ypp"
                                                            { (yystack_[1].value.objectFieldList)->emplace_back((yystack_[0].value.objectField)); (yylhs.value.objectFieldList) = (yystack_[1].value.objectFieldList); }
-#line 2181 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2160 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 133:
+  case 133: // object_field_const: name ":" value_const
 #line 559 "parser.ypp"
                                          { (yylhs.value.objectField) = new ObjectField(yylhs.location, (yystack_[2].value.name), (yystack_[0].value.value)); }
-#line 2187 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2166 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 134:
+  case 134: // directives: directive_list
 #line 564 "parser.ypp"
                 { (yylhs.value.directiveList) = (yystack_[0].value.directiveList); }
-#line 2193 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2172 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 135:
+  case 135: // directives_opt: %empty
 #line 567 "parser.ypp"
                        { (yylhs.value.directiveList) = nullptr; }
-#line 2199 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2178 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 136:
+  case 136: // directives_opt: directives
 #line 568 "parser.ypp"
                 { (yylhs.value.directiveList) = (yystack_[0].value.directiveList); }
-#line 2205 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2184 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 137:
+  case 137: // directive_list: directive
 #line 571 "parser.ypp"
                           { (yylhs.value.directiveList) = new std::vector<std::unique_ptr<Directive>>(); (yylhs.value.directiveList)->emplace_back((yystack_[0].value.directive)); }
-#line 2211 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2190 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 138:
+  case 138: // directive_list: directive_list directive
 #line 572 "parser.ypp"
                                          { (yystack_[1].value.directiveList)->emplace_back((yystack_[0].value.directive)); (yylhs.value.directiveList) = (yystack_[1].value.directiveList); }
-#line 2217 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2196 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 139:
+  case 139: // directive: "@" name arguments_opt
 #line 575 "parser.ypp"
                                        { (yylhs.value.directive) = new Directive(yylhs.location, (yystack_[1].value.name), (yystack_[0].value.argumentList)); }
-#line 2223 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2202 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 140:
+  case 140: // type: type_name
 #line 580 "parser.ypp"
                           { (yylhs.value.type) = static_cast<Type *>((yystack_[0].value.namedType)); }
-#line 2229 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2208 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 141:
+  case 141: // type: list_type
 #line 581 "parser.ypp"
                           { (yylhs.value.type) = static_cast<Type *>((yystack_[0].value.listType)); }
-#line 2235 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2214 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 142:
+  case 142: // type: non_null_type
 #line 582 "parser.ypp"
                               { (yylhs.value.type) = static_cast<Type *>((yystack_[0].value.nonNullType)); }
-#line 2241 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2220 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 143:
+  case 143: // type_name: name
 #line 585 "parser.ypp"
                      { (yylhs.value.namedType) = new NamedType(yylhs.location, (yystack_[0].value.name)); }
-#line 2247 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2226 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 144:
+  case 144: // list_type: "[" type "]"
 #line 588 "parser.ypp"
                              { (yylhs.value.listType) = new ListType(yylhs.location, (yystack_[1].value.type)); }
-#line 2253 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2232 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 145:
+  case 145: // non_null_type: type_name "!"
 #line 591 "parser.ypp"
                               { (yylhs.value.nonNullType) = new NonNullType(yylhs.location, (yystack_[1].value.namedType)); }
-#line 2259 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2238 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 146:
+  case 146: // non_null_type: list_type "!"
 #line 592 "parser.ypp"
                               { (yylhs.value.nonNullType) = new NonNullType(yylhs.location, (yystack_[1].value.listType)); }
-#line 2265 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2244 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 147:
+  case 147: // schema_definition: "schema" directives_opt "{" operation_type_definition_list "}"
 #line 597 "parser.ypp"
                                                                                 { (yylhs.value.schemaDefinition) = new SchemaDefinition(yylhs.location, (yystack_[3].value.directiveList), (yystack_[1].value.operationTypeDefinitionList)); }
-#line 2271 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2250 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 148:
+  case 148: // operation_type_definition_list: operation_type_definition
 #line 601 "parser.ypp"
                                           { (yylhs.value.operationTypeDefinitionList) = new std::vector<std::unique_ptr<OperationTypeDefinition>>(); (yylhs.value.operationTypeDefinitionList)->emplace_back((yystack_[0].value.operationTypeDefinition)); }
-#line 2277 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2256 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 149:
+  case 149: // operation_type_definition_list: operation_type_definition_list operation_type_definition
 #line 602 "parser.ypp"
                                                                          { (yystack_[1].value.operationTypeDefinitionList)->emplace_back((yystack_[0].value.operationTypeDefinition)); (yylhs.value.operationTypeDefinitionList) = (yystack_[1].value.operationTypeDefinitionList); }
-#line 2283 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2262 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 150:
+  case 150: // operation_type_definition: operation_type ":" type_name
 #line 606 "parser.ypp"
                                              { (yylhs.value.operationTypeDefinition) = new OperationTypeDefinition(yylhs.location, (yystack_[2].value.heapStr), (yystack_[0].value.namedType)); }
-#line 2289 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2268 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 151:
+  case 151: // scalar_type_definition: "scalar" name directives_opt
 #line 609 "parser.ypp"
                                                    { (yylhs.value.scalarTypeDefinition) = new ScalarTypeDefinition(yylhs.location, (yystack_[1].value.name), (yystack_[0].value.directiveList)); }
-#line 2295 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2274 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 152:
+  case 152: // object_type_definition: "type" name implements_interfaces_opt directives_opt "{" field_definition_list "}"
 #line 612 "parser.ypp"
                                                                                                          { (yylhs.value.objectTypeDefinition) = new ObjectTypeDefinition(yylhs.location, (yystack_[5].value.name), (yystack_[4].value.typeNameList), (yystack_[3].value.directiveList), (yystack_[1].value.fieldDefinitionList)); }
-#line 2301 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2280 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 153:
+  case 153: // implements_interfaces_opt: %empty
 #line 615 "parser.ypp"
                                   { (yylhs.value.typeNameList) = nullptr; }
-#line 2307 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2286 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 154:
+  case 154: // implements_interfaces_opt: "implements" type_name_list
 #line 616 "parser.ypp"
                                           { (yylhs.value.typeNameList) = (yystack_[0].value.typeNameList); }
-#line 2313 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2292 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 155:
+  case 155: // type_name_list: type_name
 #line 619 "parser.ypp"
                           { (yylhs.value.typeNameList) = new std::vector<std::unique_ptr<NamedType>>(); (yylhs.value.typeNameList)->emplace_back((yystack_[0].value.namedType)); }
-#line 2319 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2298 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 156:
+  case 156: // type_name_list: type_name_list type_name
 #line 620 "parser.ypp"
                                          { (yystack_[1].value.typeNameList)->emplace_back((yystack_[0].value.namedType)); (yylhs.value.typeNameList) = (yystack_[1].value.typeNameList); }
-#line 2325 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2304 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 157:
+  case 157: // field_definition: name arguments_definition_opt ":" type directives_opt
 #line 623 "parser.ypp"
                                                                         { (yylhs.value.fieldDefinition) = new FieldDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[3].value.inputValueDefinitionList), (yystack_[1].value.type), (yystack_[0].value.directiveList)); }
-#line 2331 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2310 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 158:
+  case 158: // field_definition_list: field_definition
 #line 627 "parser.ypp"
                                          { (yylhs.value.fieldDefinitionList) = new std::vector<std::unique_ptr<FieldDefinition>>(); (yylhs.value.fieldDefinitionList)->emplace_back((yystack_[0].value.fieldDefinition)); }
-#line 2337 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2316 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 159:
+  case 159: // field_definition_list: field_definition_list field_definition
 #line 628 "parser.ypp"
                                                        { (yystack_[1].value.fieldDefinitionList)->emplace_back((yystack_[0].value.fieldDefinition)); (yylhs.value.fieldDefinitionList) = (yystack_[1].value.fieldDefinitionList); }
-#line 2343 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2322 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 160:
+  case 160: // arguments_definition_opt: %empty
 #line 631 "parser.ypp"
                                  { (yylhs.value.inputValueDefinitionList) = nullptr; }
-#line 2349 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2328 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 161:
+  case 161: // arguments_definition_opt: arguments_definition
 #line 632 "parser.ypp"
                                      { (yylhs.value.inputValueDefinitionList) = (yystack_[0].value.inputValueDefinitionList); }
-#line 2355 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2334 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 162:
+  case 162: // arguments_definition: "(" input_value_definition_list ")"
 #line 635 "parser.ypp"
                                                           { (yylhs.value.inputValueDefinitionList) = (yystack_[1].value.inputValueDefinitionList); }
-#line 2361 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2340 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 163:
+  case 163: // input_value_definition_list: input_value_definition
 #line 638 "parser.ypp"
                                                     { (yylhs.value.inputValueDefinitionList) = new std::vector<std::unique_ptr<InputValueDefinition>>(); (yylhs.value.inputValueDefinitionList)->emplace_back((yystack_[0].value.inputValueDefinition)); }
-#line 2367 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2346 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 164:
+  case 164: // input_value_definition_list: input_value_definition_list input_value_definition
 #line 639 "parser.ypp"
                                                                    { (yystack_[1].value.inputValueDefinitionList)->emplace_back((yystack_[0].value.inputValueDefinition)); (yylhs.value.inputValueDefinitionList) = (yystack_[1].value.inputValueDefinitionList); }
-#line 2373 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2352 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 165:
+  case 165: // input_value_definition: name ":" type default_value_opt directives_opt
 #line 642 "parser.ypp"
                                                                        { (yylhs.value.inputValueDefinition) = new InputValueDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[2].value.type), (yystack_[1].value.value), (yystack_[0].value.directiveList)); }
-#line 2379 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2358 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 166:
+  case 166: // interface_type_definition: "interface" name directives_opt "{" field_definition_list "}"
 #line 644 "parser.ypp"
                                                                                        { (yylhs.value.interfaceTypeDefinition) = new InterfaceTypeDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[3].value.directiveList), (yystack_[1].value.fieldDefinitionList)); }
-#line 2385 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2364 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 167:
+  case 167: // union_type_definition: "union" name directives_opt "=" union_members
 #line 647 "parser.ypp"
                                                                    { (yylhs.value.unionTypeDefinition) = new UnionTypeDefinition(yylhs.location, (yystack_[3].value.name), (yystack_[2].value.directiveList), (yystack_[0].value.typeNameList)); }
-#line 2391 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2370 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 168:
+  case 168: // union_members: type_name
 #line 650 "parser.ypp"
                           { (yylhs.value.typeNameList) = new std::vector<std::unique_ptr<NamedType>>();  (yylhs.value.typeNameList)->emplace_back((yystack_[0].value.namedType)); }
-#line 2397 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2376 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 169:
+  case 169: // union_members: union_members "|" type_name
 #line 651 "parser.ypp"
                                             { (yystack_[2].value.typeNameList)->emplace_back((yystack_[0].value.namedType)); (yylhs.value.typeNameList) = (yystack_[2].value.typeNameList); }
-#line 2403 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2382 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 170:
+  case 170: // enum_type_definition: "enum" name directives_opt "{" enum_value_definition_list "}"
 #line 654 "parser.ypp"
                                                                                   { (yylhs.value.enumTypeDefinition) = new EnumTypeDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[3].value.directiveList), (yystack_[1].value.enumValueDefinitionList)); }
-#line 2409 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2388 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 171:
+  case 171: // enum_value_definition: name directives_opt
 #line 657 "parser.ypp"
                                            { (yylhs.value.enumValueDefinition) = new EnumValueDefinition(yylhs.location, (yystack_[1].value.name), (yystack_[0].value.directiveList)); }
-#line 2415 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2394 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 172:
+  case 172: // enum_value_definition_list: enum_value_definition
 #line 661 "parser.ypp"
                                       { (yylhs.value.enumValueDefinitionList) = new std::vector<std::unique_ptr<EnumValueDefinition>>(); (yylhs.value.enumValueDefinitionList)->emplace_back((yystack_[0].value.enumValueDefinition)); }
-#line 2421 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2400 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 173:
+  case 173: // enum_value_definition_list: enum_value_definition_list enum_value_definition
 #line 662 "parser.ypp"
                                                                  { (yystack_[1].value.enumValueDefinitionList)->emplace_back((yystack_[0].value.enumValueDefinition)); (yylhs.value.enumValueDefinitionList) = (yystack_[1].value.enumValueDefinitionList); }
-#line 2427 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2406 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 174:
+  case 174: // input_object_type_definition: "input" name directives_opt "{" input_value_definition_list "}"
 #line 665 "parser.ypp"
                                                                                             { (yylhs.value.inputObjectTypeDefinition) = new InputObjectTypeDefinition(yylhs.location, (yystack_[4].value.name), (yystack_[3].value.directiveList), (yystack_[1].value.inputValueDefinitionList)); }
-#line 2433 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2412 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 175:
+  case 175: // type_extension_definition: "extend" object_type_definition
 #line 668 "parser.ypp"
                                                          { (yylhs.value.typeExtensionDefinition) = new TypeExtensionDefinition(yylhs.location, (yystack_[0].value.objectTypeDefinition)); }
-#line 2439 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2418 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 176:
+  case 176: // directive_definition: "directive" "@" name arguments_definition_opt "on" directive_locations
 #line 671 "parser.ypp"
                                                                                          { (yylhs.value.directiveDefinition) = new DirectiveDefinition(yylhs.location, (yystack_[3].value.name), (yystack_[2].value.inputValueDefinitionList), (yystack_[0].value.nameList)); }
-#line 2445 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2424 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 177:
+  case 177: // directive_locations: name
 #line 675 "parser.ypp"
                      { (yylhs.value.nameList) = new std::vector<std::unique_ptr<Name>>(); (yylhs.value.nameList)->emplace_back((yystack_[0].value.name)); }
-#line 2451 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2430 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
-  case 178:
+  case 178: // directive_locations: directive_locations "|" name
 #line 676 "parser.ypp"
                                              { (yystack_[2].value.nameList)->emplace_back((yystack_[0].value.name)); (yylhs.value.nameList) = (yystack_[2].value.nameList); }
-#line 2457 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2436 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
     break;
 
 
-#line 2461 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 2440 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
 
             default:
               break;
@@ -2474,7 +2453,6 @@ namespace yy {
       YY_SYMBOL_PRINT ("-> $$ =", yylhs);
       yypop_ (yylen);
       yylen = 0;
-      YY_STACK_PRINT ();
 
       // Shift the result of the reduction.
       yypush_ (YY_NULLPTR, YY_MOVE (yylhs));
@@ -2490,7 +2468,9 @@ namespace yy {
     if (!yyerrstatus_)
       {
         ++yynerrs_;
-        error (yyla.location, yysyntax_error_ (yystack_[0].state, yyla));
+        context yyctx (*this, yyla);
+        std::string msg = yysyntax_error_ (yyctx);
+        error (yyla.location, YY_MOVE (msg));
       }
 
 
@@ -2501,7 +2481,7 @@ namespace yy {
            error, discard it.  */
 
         // Return failure if at end of input.
-        if (yyla.type_get () == yyeof_)
+        if (yyla.kind () == symbol_kind::S_YYEOF)
           YYABORT;
         else if (!yyla.empty ())
           {
@@ -2527,6 +2507,7 @@ namespace yy {
        this YYERROR.  */
     yypop_ (yylen);
     yylen = 0;
+    YY_STACK_PRINT ();
     goto yyerrlab1;
 
 
@@ -2535,31 +2516,33 @@ namespace yy {
   `-------------------------------------------------------------*/
   yyerrlab1:
     yyerrstatus_ = 3;   // Each real token shifted decrements this.
+    // Pop stack until we find a state that shifts the error token.
+    for (;;)
+      {
+        yyn = yypact_[+yystack_[0].state];
+        if (!yy_pact_value_is_default_ (yyn))
+          {
+            yyn += symbol_kind::S_YYerror;
+            if (0 <= yyn && yyn <= yylast_
+                && yycheck_[yyn] == symbol_kind::S_YYerror)
+              {
+                yyn = yytable_[yyn];
+                if (0 < yyn)
+                  break;
+              }
+          }
+
+        // Pop the current state because it cannot handle the error token.
+        if (yystack_.size () == 1)
+          YYABORT;
+
+        yyerror_range[1].location = yystack_[0].location;
+        yy_destroy_ ("Error: popping", yystack_[0]);
+        yypop_ ();
+        YY_STACK_PRINT ();
+      }
     {
       stack_symbol_type error_token;
-      for (;;)
-        {
-          yyn = yypact_[+yystack_[0].state];
-          if (!yy_pact_value_is_default_ (yyn))
-            {
-              yyn += yy_error_token_;
-              if (0 <= yyn && yyn <= yylast_ && yycheck_[yyn] == yy_error_token_)
-                {
-                  yyn = yytable_[yyn];
-                  if (0 < yyn)
-                    break;
-                }
-            }
-
-          // Pop the current state because it cannot handle the error token.
-          if (yystack_.size () == 1)
-            YYABORT;
-
-          yyerror_range[1].location = yystack_[0].location;
-          yy_destroy_ ("Error: popping", yystack_[0]);
-          yypop_ ();
-          YY_STACK_PRINT ();
-        }
 
       yyerror_range[2].location = yyla.location;
       YYLLOC_DEFAULT (error_token.location, yyerror_range, 2);
@@ -2597,6 +2580,7 @@ namespace yy {
     /* Do not reclaim the symbols of the rule whose action triggered
        this YYABORT or YYACCEPT.  */
     yypop_ (yylen);
+    YY_STACK_PRINT ();
     while (1 < yystack_.size ())
       {
         yy_destroy_ ("Cleanup: popping", yystack_[0]);
@@ -2630,18 +2614,103 @@ namespace yy {
     error (yyexc.location, yyexc.what ());
   }
 
-  // Generate an error message.
+  /* Return YYSTR after stripping away unnecessary quotes and
+     backslashes, so that it's suitable for yyerror.  The heuristic is
+     that double-quoting is unnecessary unless the string contains an
+     apostrophe, a comma, or backslash (other than backslash-backslash).
+     YYSTR is taken from yytname.  */
   std::string
-  GraphQLParserImpl::yysyntax_error_ (state_type yystate, const symbol_type& yyla) const
+  GraphQLParserImpl::yytnamerr_ (const char *yystr)
   {
-    // Number of reported tokens (one for the "unexpected", one per
-    // "expected").
-    std::ptrdiff_t yycount = 0;
-    // Its maximum.
-    enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
-    // Arguments of yyformat.
-    char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
+    if (*yystr == '"')
+      {
+        std::string yyr;
+        char const *yyp = yystr;
 
+        for (;;)
+          switch (*++yyp)
+            {
+            case '\'':
+            case ',':
+              goto do_not_strip_quotes;
+
+            case '\\':
+              if (*++yyp != '\\')
+                goto do_not_strip_quotes;
+              else
+                goto append;
+
+            append:
+            default:
+              yyr += *yyp;
+              break;
+
+            case '"':
+              return yyr;
+            }
+      do_not_strip_quotes: ;
+      }
+
+    return yystr;
+  }
+
+  std::string
+  GraphQLParserImpl::symbol_name (symbol_kind_type yysymbol)
+  {
+    return yytnamerr_ (yytname_[yysymbol]);
+  }
+
+
+
+  // GraphQLParserImpl::context.
+  GraphQLParserImpl::context::context (const GraphQLParserImpl& yyparser, const symbol_type& yyla)
+    : yyparser_ (yyparser)
+    , yyla_ (yyla)
+  {}
+
+  int
+  GraphQLParserImpl::context::expected_tokens (symbol_kind_type yyarg[], int yyargn) const
+  {
+    // Actual number of expected tokens
+    int yycount = 0;
+
+    const int yyn = yypact_[+yyparser_.yystack_[0].state];
+    if (!yy_pact_value_is_default_ (yyn))
+      {
+        /* Start YYX at -YYN if negative to avoid negative indexes in
+           YYCHECK.  In other words, skip the first -YYN actions for
+           this state because they are default actions.  */
+        const int yyxbegin = yyn < 0 ? -yyn : 0;
+        // Stay within bounds of both yycheck and yytname.
+        const int yychecklim = yylast_ - yyn + 1;
+        const int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
+        for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
+          if (yycheck_[yyx + yyn] == yyx && yyx != symbol_kind::S_YYerror
+              && !yy_table_value_is_error_ (yytable_[yyx + yyn]))
+            {
+              if (!yyarg)
+                ++yycount;
+              else if (yycount == yyargn)
+                return 0;
+              else
+                yyarg[yycount++] = YY_CAST (symbol_kind_type, yyx);
+            }
+      }
+
+    if (yyarg && yycount == 0 && 0 < yyargn)
+      yyarg[0] = symbol_kind::S_YYEMPTY;
+    return yycount;
+  }
+
+
+
+
+
+
+  int
+  GraphQLParserImpl::yy_syntax_error_arguments_ (const context& yyctx,
+                                                 symbol_kind_type yyarg[], int yyargn) const
+  {
     /* There are many possibilities here to consider:
        - If this state is a consistent state with a default action, then
          the only way this function was invoked is if the default action
@@ -2666,35 +2735,26 @@ namespace yy {
          one exception: it will still contain any token that will not be
          accepted due to an error action in a later state.
     */
-    if (!yyla.empty ())
-      {
-        symbol_number_type yytoken = yyla.type_get ();
-        yyarg[yycount++] = yytname_[yytoken];
 
-        int yyn = yypact_[+yystate];
-        if (!yy_pact_value_is_default_ (yyn))
-          {
-            /* Start YYX at -YYN if negative to avoid negative indexes in
-               YYCHECK.  In other words, skip the first -YYN actions for
-               this state because they are default actions.  */
-            int yyxbegin = yyn < 0 ? -yyn : 0;
-            // Stay within bounds of both yycheck and yytname.
-            int yychecklim = yylast_ - yyn + 1;
-            int yyxend = yychecklim < yyntokens_ ? yychecklim : yyntokens_;
-            for (int yyx = yyxbegin; yyx < yyxend; ++yyx)
-              if (yycheck_[yyx + yyn] == yyx && yyx != yy_error_token_
-                  && !yy_table_value_is_error_ (yytable_[yyx + yyn]))
-                {
-                  if (yycount == YYERROR_VERBOSE_ARGS_MAXIMUM)
-                    {
-                      yycount = 1;
-                      break;
-                    }
-                  else
-                    yyarg[yycount++] = yytname_[yyx];
-                }
-          }
+    if (!yyctx.lookahead ().empty ())
+      {
+        if (yyarg)
+          yyarg[0] = yyctx.token ();
+        int yyn = yyctx.expected_tokens (yyarg ? yyarg + 1 : yyarg, yyargn - 1);
+        return yyn + 1;
       }
+    return 0;
+  }
+
+  // Generate an error message.
+  std::string
+  GraphQLParserImpl::yysyntax_error_ (const context& yyctx) const
+  {
+    // Its maximum.
+    enum { YYARGS_MAX = 5 };
+    // Arguments of yyformat.
+    symbol_kind_type yyarg[YYARGS_MAX];
+    int yycount = yy_syntax_error_arguments_ (yyctx, yyarg, YYARGS_MAX);
 
     char const* yyformat = YY_NULLPTR;
     switch (yycount)
@@ -2719,7 +2779,7 @@ namespace yy {
     for (char const* yyp = yyformat; *yyp; ++yyp)
       if (yyp[0] == '%' && yyp[1] == 's' && yyi < yycount)
         {
-          yyres += yytnamerr_ (yyarg[yyi++]);
+          yyres += symbol_name (yyarg[yyi++]);
           ++yyp;
         }
       else
@@ -2814,7 +2874,7 @@ namespace yy {
   const short
   GraphQLParserImpl::yydefgoto_[] =
   {
-      -1,    15,    53,   107,    77,    16,    17,    18,    19,    20,
+       0,    15,    53,   107,    77,    16,    17,    18,    19,    20,
       21,   100,   129,   206,   131,   237,   238,    22,   160,    69,
       70,    71,    95,    96,   124,   125,    72,    73,    23,   108,
      207,   208,   209,   210,   255,   211,   212,   213,   214,   229,
@@ -3106,14 +3166,14 @@ namespace yy {
   };
 
 
-
+#if YYDEBUG || 1
   // YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
-  // First, the terminals, then, starting at \a yyntokens_, nonterminals.
+  // First, the terminals, then, starting at \a YYNTOKENS, nonterminals.
   const char*
   const GraphQLParserImpl::yytname_[] =
   {
-  "EOF", "error", "$undefined", "\"directive\"", "\"enum\"", "\"extend\"",
-  "\"false\"", "\"fragment\"", "\"implements\"", "\"input\"",
+  "EOF", "error", "\"invalid token\"", "\"directive\"", "\"enum\"",
+  "\"extend\"", "\"false\"", "\"fragment\"", "\"implements\"", "\"input\"",
   "\"interface\"", "\"mutation\"", "\"null\"", "\"query\"", "\"on\"",
   "\"scalar\"", "\"schema\"", "\"subscription\"", "\"true\"", "\"type\"",
   "\"union\"", "\"!\"", "\"(\"", "\")\"", "\"...\"", "\":\"", "\"=\"",
@@ -3144,6 +3204,8 @@ namespace yy {
   "input_object_type_definition", "type_extension_definition",
   "directive_definition", "directive_locations", YY_NULLPTR
   };
+#endif
+
 
 #if YYDEBUG
   const short
@@ -3169,9 +3231,8 @@ namespace yy {
      654,   657,   661,   662,   665,   668,   671,   675,   676
   };
 
-  // Print the state stack on the debug stream.
   void
-  GraphQLParserImpl::yystack_print_ ()
+  GraphQLParserImpl::yy_stack_print_ () const
   {
     *yycdebug_ << "Stack now";
     for (stack_type::const_iterator
@@ -3182,9 +3243,8 @@ namespace yy {
     *yycdebug_ << '\n';
   }
 
-  // Report on the debug stream that the rule \a yyrule is going to be reduced.
   void
-  GraphQLParserImpl::yy_reduce_print_ (int yyrule)
+  GraphQLParserImpl::yy_reduce_print_ (int yyrule) const
   {
     int yylno = yyrline_[yyrule];
     int yynrhs = yyr2_[yyrule];
@@ -3198,13 +3258,13 @@ namespace yy {
   }
 #endif // YYDEBUG
 
-  GraphQLParserImpl::token_number_type
-  GraphQLParserImpl::yytranslate_ (int t)
+  GraphQLParserImpl::symbol_kind_type
+  GraphQLParserImpl::yytranslate_ (int t) YY_NOEXCEPT
   {
     // YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to
     // TOKEN-NUM as returned by yylex.
     static
-    const token_number_type
+    const signed char
     translate_table[] =
     {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -3238,18 +3298,19 @@ namespace yy {
       25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
       35,    36,    37
     };
-    const int user_token_number_max_ = 292;
+    // Last valid token kind.
+    const int code_max = 292;
 
     if (t <= 0)
-      return yyeof_;
-    else if (t <= user_token_number_max_)
-      return translate_table[t];
+      return symbol_kind::S_YYEOF;
+    else if (t <= code_max)
+      return static_cast <symbol_kind_type> (translate_table[t]);
     else
-      return yy_undef_token_;
+      return symbol_kind::S_YYUNDEF;
   }
 
 } // yy
-#line 3253 "/home/tanec/parser_graphql/libgraphqlparser/parser.tab.cpp"
+#line 3314 "/home/kanades/postgres/contrib/graphql_proxy/libgraphqlparser/parser.tab.cpp"
 
 #line 679 "parser.ypp"
 

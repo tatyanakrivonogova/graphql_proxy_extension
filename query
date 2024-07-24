@@ -1,3 +1,8 @@
 curl 'http://localhost:8080/query' \
   -H 'content-type: application/json' \
   --data-raw '{"query":"query findVideos {\n  videos {\n    id\n    title\n    url\n    author {\n      id\n      name\n    }\n  }\n}","operationName":"findVideos"}'
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+INSERT INTO table1 values(9876);

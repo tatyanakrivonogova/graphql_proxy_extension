@@ -6,6 +6,8 @@ OBJS = \
   http/http_parser.o \
   http/input_parsing.o \
   io_uring/event_handling.o \
+  io_uring/multiple_user_access.o  \
+  postgres_connect/postgres_connect.o \
   graphql_proxy.o
 
 EXTENSION = graphql_proxy
