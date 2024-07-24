@@ -43,6 +43,13 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
     }
 }
 
+void free_arguments(Mutation *mutation) {
+    if (mutation == NULL) return;
+    for (size_t i = 0; i < mutation->argumentsNumber; ++i) {
+        if (mutation->arguments[i] != NULL) free(mutation->arguments[i]);
+    }
+}
+
 hashmap *schema_convert(const char *json_schema) {
     char *sql_create;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
@@ -164,13 +171,13 @@ hashmap *schema_convert(const char *json_schema) {
                     mutation_field = cJSON_GetArrayItem(mutation_fields, j);
                     mutation_field_name = cJSON_GetObjectItemCaseSensitive(mutation_field, "name");
                     mutation_field_name_value = cJSON_GetObjectItemCaseSensitive(mutation_field_name, "value");
-                    // elog(LOG, "Mutation %s\n", mutation_field_name_value->valuestring);
+
                     if (mutation_field_name_value != NULL && (cJSON_IsString(mutation_field_name_value) && (mutation_field_name_value->valuestring != NULL))) {
-                        // strcpy(mutations.createdMutations[mutations.numCreatedMutations++], mutation_field_name_value->valuestring);
                         mutation = (Mutation*)malloc(sizeof(Mutation));
                         if (mutation == NULL) {
                             elog(LOG, "Mutation struct malloc failed\n");
-                            continue;
+                            goto parse_next_mutation;
+                            // continue;
                         }
                         strcpy(mutation->mutationName, mutation_field_name_value->valuestring);
                         mutation_field_arguments = cJSON_GetObjectItemCaseSensitive(mutation_field, "arguments");
@@ -189,7 +196,11 @@ hashmap *schema_convert(const char *json_schema) {
                             // create struct for new argument
                             currentArg = (Argument*)malloc(sizeof(Argument));
                             if (currentArg == NULL) {
-                                elog(LOG, "Argument malloc failed\n");
+                                elog(LOG, "Argument malloc failed. Mutation is invalid. Free mutation\n");
+                                free_arguments(mutation);
+                                free(mutation);
+                                goto parse_next_mutation;
+                                // continue;
                             }
                             // parse argument name
                             argument = cJSON_GetArrayItem(mutation_field_arguments, k);
@@ -198,8 +209,11 @@ hashmap *schema_convert(const char *json_schema) {
                             if (argument_name_value != NULL && (cJSON_IsString(argument_name_value)) && (argument_name_value->valuestring != NULL)) {
                                 strcpy(currentArg->argName, argument_name_value->valuestring);
                             } else {
-                                free(currentArg);
-                                continue;
+                                elog(LOG, "Parse mutation's name failed. Mutation is invalid. Free mutation\n");
+                                free_arguments(mutation);
+                                free(mutation);
+                                goto parse_next_mutation;
+                                // continue;
                             }
 
                             // parse argumentkind
@@ -212,8 +226,11 @@ hashmap *schema_convert(const char *json_schema) {
                                     currentArg->nonNullType = false;
                                 }
                             } else {
-                                free(currentArg);
-                                continue;
+                                elog(LOG, "Parse mutation's kind failed. Mutation is invalid. Free mutation\n");
+                                free_arguments(mutation);
+                                free(mutation);
+                                goto parse_next_mutation;
+                                // continue;
                             }
 
                             // parse argument type
@@ -224,14 +241,17 @@ hashmap *schema_convert(const char *json_schema) {
                             if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) && (argument_type_type_name_value->valuestring != NULL)) {
                                 strcpy(currentArg->argType, argument_type_type_name_value->valuestring);
                             } else {
-                                free(currentArg);
-                                continue;
+                                elog(LOG, "Parse mutation's type failed. Mutation is invalid. Free mutation\n");
+                                free_arguments(mutation);
+                                free(mutation);
+                                goto parse_next_mutation;
+                                // continue;
                             }
 
                             elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType);
                             // add argument into mutation struct
                             mutation->arguments[k] = currentArg;
-                        }                    
+                        }            
 
                         // get sql-code for mutation
                         mutation_body = load_function_body(mutation_field_name_value->valuestring);
@@ -242,13 +262,19 @@ hashmap *schema_convert(const char *json_schema) {
                             elog(LOG, "key: %s ksize: %ld\n", mutation_field_name_value->valuestring, strlen(mutation_field_name_value->valuestring)+1);
                             if (error == -1)
                                 elog(LOG, "hashmap_set error for mutation %s: %p\n", mutation_field_name_value->valuestring, mutation_body);
-
-                            
-                            // mutations.numCreatedMutations++;
                         } else {
                             elog(LOG, "Mutation %s not found.\n", mutation_field_name_value->valuestring);
+                            elog(LOG, "Free arguments\n");
+                            free_arguments(mutation);
+                            elog(LOG, "free mutation\n");
+                            free(mutation);
+                            elog(LOG, "goto\n");
+                            goto parse_next_mutation;
+                            // continue;
                         }
                     }
+parse_next_mutation:
+                    elog(LOG, "parse next mutation\n");
                 }
                 continue;
             }

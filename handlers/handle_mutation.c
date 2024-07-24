@@ -5,10 +5,91 @@
 
 #include "postgres.h"
 
+void swap(char **a, char **b) {
+    char *temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// void insert_int(char *buffer, size_t buffer_size, const char *format, int value) {
+//     char temp[32];
+//     int length = 0;
+
+//     // int to string
+//     length = sprintf(temp, "%d", value);
+//     if (length < 0 || length >= sizeof(temp)) {
+//         return;
+//     }
+//     elog(LOG, "int to string: %s\n", temp);
+
+//     // find %d
+//     const char *pos = strstr(format, "%d");
+//     elog(LOG, "pos: %c\n", pos);
+//     if (pos != NULL) {
+//         // copy string before %d
+//         size_t prefix_length = pos - format;
+//         if (prefix_length + length + strlen(pos + 2) < buffer_size) {
+//             strncpy(buffer, format, prefix_length);
+//             buffer[prefix_length] = '\0';
+//             elog(LOG, "after cpy: %s\n", buffer);
+
+//             strcat(buffer, temp); // add int
+//             elog(LOG, "after cat: %s\n", buffer);
+//             strcat(buffer, pos + 2); // add rest of string
+//             elog(LOG, "after cat: %s\n", buffer);
+//         }
+//     } else {
+//         // copy original string
+//         strncpy(buffer, format, buffer_size - 1);
+//         buffer[buffer_size - 1] = '\0';
+//     }
+// }
+
+// void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
+//     // find %s
+//     const char *pos = strstr(format, "%");
+//     if (pos != NULL) {
+//         // copy string before %
+//         size_t prefix_length = pos - format;
+//         if (prefix_length + strlen(value) + strlen(pos + 2) < buffer_size) {
+//             strncpy(buffer, format, prefix_length);
+//             buffer[prefix_length] = '\0';
+
+//             strcat(buffer, value); // add string
+//             strcat(buffer, pos + 2); // add rest of string
+//         }
+//     } else {
+//         // copy original string
+//         strncpy(buffer, format, buffer_size - 1);
+//         buffer[buffer_size - 1] = '\0';
+//     }
+// }
+
+void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
+    // find %
+    const char *pos = strchr(format, '%');
+    if (pos != NULL) {
+        // copy string before %
+        size_t prefix_length = pos - format;
+        if (prefix_length + strlen(value) + strlen(pos + 1) < buffer_size) {
+            strncpy(buffer, format, prefix_length);
+            buffer[prefix_length] = '\0';
+
+            strcat(buffer, value); // add string
+            strcat(buffer, pos + 1); // add rest of string
+        }
+    } else {
+        // copy original string if % is not in format
+        elog(LOG, "copy original string\n");
+        strncpy(buffer, format, buffer_size - 1);
+        buffer[buffer_size - 1] = '\0';
+    }
+}
+
 void handle_mutation(const char *json_query, hashmap *resolvers) {
     cJSON *json;
     cJSON *definitions;
-    Mutation *mutation;
+    char *query;
     char *formatted_query;
 
     json = cJSON_Parse(json_query);
@@ -72,6 +153,10 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
             if (hashmap_get(resolvers, selection_name_value->valuestring, strlen(selection_name_value->valuestring), &res)) {
                 // elog(LOG, "sql query for %s:\n\t\t%p\n", selection_name_value->valuestring, res);
                 elog(LOG, "sql query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
+                // copy original query
+                query = (char *)malloc(256);
+                strcpy(query, ((Mutation *)res)->mutationSql);
+                // query for setting argument's values
                 formatted_query = (char *)malloc(256);
             } else {
                 elog(LOG, "sql query for %s not found.\n", selection_name_value->valuestring);
@@ -103,22 +188,28 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                 argument_value_value = cJSON_GetObjectItemCaseSensitive(argument_value, "value");
                 if (argument_value_value != NULL && (cJSON_IsString(argument_value_value)) 
                     && (argument_value_value->valuestring != NULL)) {
-                    elog(LOG, "argument[%d] value: %s\n", k, argument_value_value->valuestring);
+                    elog(LOG, "string argument[%d] value: %s\n", k, argument_value_value->valuestring);
                     // set arguments into mutation function
-                    sprintf(formatted_query, ((Mutation *)res)->mutationSql, argument_value_value->valuestring);
+                    elog(LOG, "before sprintf formatted_query: %s query: %s value: %s\n", formatted_query, query, argument_value_value->valuestring);
+                    // sprintf(formatted_query, query, argument_value_value->valuestring);
+                    insert_string(formatted_query, 256, query, argument_value_value->valuestring);
+                    // sprintf(formatted_query, "INSERT INTO Person(id, name) VALUES(%d, %s);", 1, "Tom");
+                    elog(LOG, "after sprintf\n");
                 }
 
-                if (argument_value_value != NULL && (cJSON_IsNumber(argument_value_value)) 
-                    && (argument_value_value->valueint != NULL)) {
-                    elog(LOG, "argument[%d] value: %d\n", k, argument_value_value->valueint);
+                if (argument_value_value != NULL && (cJSON_IsNumber(argument_value_value))) {
+                    elog(LOG, "int argument[%d] value: %d\n", k, argument_value_value->valueint);
                     // set arguments into mutation function
-                    sprintf(formatted_query, ((Mutation *)res)->mutationSql, argument_value_value->valueint);
+                    insert_string(formatted_query, 256, query, argument_value_value->valueint);
+                    // sprintf(formatted_query, query, argument_value_value->valueint);
                 }
-                
+                swap(&query, &formatted_query);
             }
 
             elog(LOG, "Formatted query: %s\n", formatted_query);
             // execute formatted query
+            elog(LOG, "before free\n");
+            free(query);
             free(formatted_query);
         }
     }
