@@ -1,4 +1,4 @@
-// #include "handlers.h"
+#include "handlers.h"
 #include "../hashmap/map.h"
 #include "../json_graphql/cJSON.h"
 #include "../schema/schema_converting.h"
@@ -10,60 +10,6 @@ void swap(char **a, char **b) {
     *a = *b;
     *b = temp;
 }
-
-// void insert_int(char *buffer, size_t buffer_size, const char *format, int value) {
-//     char temp[32];
-//     int length = 0;
-
-//     // int to string
-//     length = sprintf(temp, "%d", value);
-//     if (length < 0 || length >= sizeof(temp)) {
-//         return;
-//     }
-//     elog(LOG, "int to string: %s\n", temp);
-
-//     // find %d
-//     const char *pos = strstr(format, "%d");
-//     elog(LOG, "pos: %c\n", pos);
-//     if (pos != NULL) {
-//         // copy string before %d
-//         size_t prefix_length = pos - format;
-//         if (prefix_length + length + strlen(pos + 2) < buffer_size) {
-//             strncpy(buffer, format, prefix_length);
-//             buffer[prefix_length] = '\0';
-//             elog(LOG, "after cpy: %s\n", buffer);
-
-//             strcat(buffer, temp); // add int
-//             elog(LOG, "after cat: %s\n", buffer);
-//             strcat(buffer, pos + 2); // add rest of string
-//             elog(LOG, "after cat: %s\n", buffer);
-//         }
-//     } else {
-//         // copy original string
-//         strncpy(buffer, format, buffer_size - 1);
-//         buffer[buffer_size - 1] = '\0';
-//     }
-// }
-
-// void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
-//     // find %s
-//     const char *pos = strstr(format, "%");
-//     if (pos != NULL) {
-//         // copy string before %
-//         size_t prefix_length = pos - format;
-//         if (prefix_length + strlen(value) + strlen(pos + 2) < buffer_size) {
-//             strncpy(buffer, format, prefix_length);
-//             buffer[prefix_length] = '\0';
-
-//             strcat(buffer, value); // add string
-//             strcat(buffer, pos + 2); // add rest of string
-//         }
-//     } else {
-//         // copy original string
-//         strncpy(buffer, format, buffer_size - 1);
-//         buffer[buffer_size - 1] = '\0';
-//     }
-// }
 
 void insert_string(char *buffer, size_t buffer_size, const char *format, const char *value) {
     // find %
@@ -151,7 +97,6 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
 
             uintptr_t res;
             if (hashmap_get(resolvers, selection_name_value->valuestring, strlen(selection_name_value->valuestring), &res)) {
-                // elog(LOG, "sql query for %s:\n\t\t%p\n", selection_name_value->valuestring, res);
                 elog(LOG, "sql query for %s:\n\t\t%s\n", selection_name_value->valuestring, ((Mutation *)res)->mutationSql);
                 // copy original query
                 query = (char *)malloc(256);
@@ -191,9 +136,7 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                     elog(LOG, "string argument[%d] value: %s\n", k, argument_value_value->valuestring);
                     // set arguments into mutation function
                     elog(LOG, "before sprintf formatted_query: %s query: %s value: %s\n", formatted_query, query, argument_value_value->valuestring);
-                    // sprintf(formatted_query, query, argument_value_value->valuestring);
                     insert_string(formatted_query, 256, query, argument_value_value->valuestring);
-                    // sprintf(formatted_query, "INSERT INTO Person(id, name) VALUES(%d, %s);", 1, "Tom");
                     elog(LOG, "after sprintf\n");
                 }
 
@@ -201,7 +144,6 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
                     elog(LOG, "int argument[%d] value: %d\n", k, argument_value_value->valueint);
                     // set arguments into mutation function
                     insert_string(formatted_query, 256, query, argument_value_value->valueint);
-                    // sprintf(formatted_query, query, argument_value_value->valueint);
                 }
                 swap(&query, &formatted_query);
             }
