@@ -10,3 +10,6 @@ free_conn_index(int fd);
 
 void
 printConns();
+
+void
+closeConns();

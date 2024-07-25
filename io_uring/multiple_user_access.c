@@ -68,3 +68,12 @@ printConns() {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
         elog(LOG, "conn fd: %d", conns[i].fd);
 }
+
+void closeConns() {
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+        // elog(LOG, "conn fd: %d", conns[i].fd);
+        close(conns[i].fd);
+
+        // close PGconn
+        // TO DO
+}

@@ -4,7 +4,6 @@
 #define MAX_CONNECTIONS      (20)
 #define MAX_MESSAGE_LEN      (10000)
 
-
 typedef struct conn_info {
     PGconn *pg_conn;
     PGresult *pg_res;

@@ -63,6 +63,10 @@ int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
 void sigterm_handler(int sig) {
     elog(LOG, "Received SIGTERM signal. Cleaning up resources...");
 
+    // close(listen_socket);
+    // hashmap_free(resolvers);
+    closeConns();
+
     proc_exit(0);
 }
 
@@ -95,9 +99,6 @@ graphql_proxy_main(Datum main_arg) {
     error = hashmap_iterate(resolvers, print_entry, NULL);
     if (error == -1)
         elog(LOG, "!!!---------hashmap_iterate error\n");
-
-    // hashmap_free(resolvers);
-
 
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
