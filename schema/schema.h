@@ -11,6 +11,7 @@ typedef struct {
     char argName[NAME_LENGTH];
     char argType[NAME_LENGTH];
     bool nonNullType;
+    char defaultValue[NAME_LENGTH];
 } Argument;
 
 

@@ -40,6 +40,8 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
                 cJSON *argument_type_type;
                 cJSON *argument_type_type_name;
                 cJSON *argument_type_type_name_value;
+                cJSON *argument_defaultValue;
+                cJSON *argument_defaultValue_value;
 
                 // create struct for new argument
                 currentArg = (Argument*)malloc(sizeof(Argument));
@@ -62,7 +64,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
                     goto parse_next_operation;
                 }
 
-                // parse argumentkind
+                // parse argument kind
                 argument_type = cJSON_GetObjectItemCaseSensitive(argument, "type");
                 argument_type_kind = cJSON_GetObjectItemCaseSensitive(argument_type, "kind");
                 if (argument_type_kind != NULL && (cJSON_IsString(argument_type_kind)) && (argument_type_kind->valuestring != NULL)) {
@@ -83,7 +85,8 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
                 argument_type_type_name = cJSON_GetObjectItemCaseSensitive(argument_type_type, "name");
                 argument_type_type_name_value = cJSON_GetObjectItemCaseSensitive(argument_type_type_name, "value");
 
-                if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) && (argument_type_type_name_value->valuestring != NULL)) {
+                if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) 
+                        && (argument_type_type_name_value->valuestring != NULL)) {
                     strcpy(currentArg->argType, argument_type_type_name_value->valuestring);
                 } else {
                     elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
@@ -92,7 +95,19 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
                     goto parse_next_operation;
                 }
 
-                elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType);
+                // parse argument default value
+                argument_defaultValue = cJSON_GetObjectItemCaseSensitive(argument, "defaultValue");
+                argument_defaultValue_value = cJSON_GetObjectItemCaseSensitive(argument_defaultValue, "value");
+                if (argument_defaultValue_value != NULL && (cJSON_IsString(argument_defaultValue_value)) 
+                        && (argument_defaultValue_value->valuestring != NULL)) {
+                    elog(LOG, "default value is found\n");
+                    strcpy(currentArg->defaultValue, argument_defaultValue_value->valuestring);
+                } else {
+                    elog(LOG, "default value is not set\n");
+                    currentArg->defaultValue[0] = '\0';
+                }
+
+                elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d, defaultValue: %s\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType, currentArg->defaultValue);
                 // add argument into operation struct
                 operation->arguments[k] = currentArg;
             }            

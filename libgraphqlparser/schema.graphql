@@ -11,7 +11,7 @@ type Message {
 }
 
 type Query {
-  getPerson(id: ID!): Person
+  getPerson(id: ID! = 9): Person
   person(id: ID!): Person
 }
 
