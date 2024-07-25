@@ -39,7 +39,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
     const char *error;
     struct GraphQLAstNode * AST;
     const char *json_query;
-    int index;
 
     *outputSize = 0;
 

@@ -3,11 +3,11 @@
 #include "postgres.h"
 
 #include "../json_graphql/cJSON.h"
-#include "../json_graphql/config/config.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
 #include "../postgres_connect/postgres_connect.h"
 #include "../hashmap/map.h"
 #include "operation_converting.h"
+#include "defines.h"
 
 
 bool is_type_exists(char* type_name) {

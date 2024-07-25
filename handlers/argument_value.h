@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 
 #define NAME_LENGTH 63
 #define TYPE_LENGTH 63

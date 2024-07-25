@@ -4,7 +4,6 @@
 #include "schema.h"
 #include "../hashmap/map.h"
 
-#define QUERY_LENGTH 256
 #define ALTER_QUERIES_NUMBER 10
 
 bool is_type_exists(char* type_name);
