@@ -34,6 +34,8 @@ PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
 
+hashmap *resolvers;
+
 void
 _PG_init(void) {
 	graphql_proxy_start_worker();
@@ -64,7 +66,7 @@ void sigterm_handler(int sig) {
     elog(LOG, "Received SIGTERM signal. Cleaning up resources...");
 
     // close(listen_socket);
-    // hashmap_free(resolvers);
+    hashmap_free(resolvers);
     closeConns();
 
     proc_exit(0);
@@ -93,7 +95,7 @@ graphql_proxy_main(Datum main_arg) {
     // get json schema
     const char *json_schema = schema_to_json();
     // parse schema
-    hashmap *resolvers = schema_convert(json_schema);
+    resolvers = schema_convert(json_schema);
     elog(LOG, "after schema_convert\n");
 
     error = hashmap_iterate(resolvers, print_entry, NULL);

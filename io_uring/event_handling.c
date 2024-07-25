@@ -93,6 +93,6 @@ add_socket_write(struct io_uring *ring, int fd, size_t size) {
 
 void
 socket_close(conn_info *user_data, int how) {
-    shutdown(user_data->fd, SHUT_RDWR);
+    shutdown(user_data->fd, how);
     free_conn_index(user_data->fd); 
 }
