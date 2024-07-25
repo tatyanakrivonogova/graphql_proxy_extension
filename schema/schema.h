@@ -2,6 +2,8 @@
 #include "stddef.h"
 
 #define NAME_LENGTH 63
+#define TYPE_LENGTH 63
+#define DEFAULT_VALUE_LENGTH 63
 #define MAX_TYPES_NUMBER 20
 #define MAX_QUERIES_NUMBER 20
 #define MAX_MUTATIONS_NUMBER 20
@@ -9,9 +11,9 @@
 
 typedef struct {
     char argName[NAME_LENGTH];
-    char argType[NAME_LENGTH];
+    char argType[TYPE_LENGTH];
     bool nonNullType;
-    char defaultValue[NAME_LENGTH];
+    char defaultValue[DEFAULT_VALUE_LENGTH];
 } Argument;
 
 

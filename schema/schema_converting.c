@@ -5,7 +5,6 @@
 #include "../json_graphql/cJSON.h"
 #include "../json_graphql/config/config.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
-// #include "../libpq/query_executing.c"
 #include "../postgres_connect/postgres_connect.h"
 #include "../hashmap/map.h"
 #include "operation_converting.h"
@@ -110,7 +109,7 @@ hashmap *schema_convert(const char *json_schema) {
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
             if (strcmp(definition_name_value->valuestring, "Mutation") == 0 || (strcmp(definition_name_value->valuestring, "Query") == 0)) {
                 // parse operation
-                operation_convert(definition, resolvers);
+                operation_convert(definition, resolvers, configEntries, numEntries);
                 continue;
             }
         }

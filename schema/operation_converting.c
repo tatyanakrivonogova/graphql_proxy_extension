@@ -5,7 +5,7 @@
 #include "../schema/schema.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
 
-void operation_convert(cJSON *definition, hashmap *resolvers) {
+void operation_convert(cJSON *definition, hashmap *resolvers, ConfigEntry* configEntries, size_t numEntries) {
     cJSON *operation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
     for (int j = 0; j < cJSON_GetArraySize(operation_fields); ++j)
     {
@@ -37,11 +37,14 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
                 cJSON *argument_name_value;
                 cJSON *argument_type;
                 cJSON *argument_type_kind;
+                cJSON *argument_type_name;
+                cJSON *argument_type_name_value;
                 cJSON *argument_type_type;
                 cJSON *argument_type_type_name;
                 cJSON *argument_type_type_name_value;
                 cJSON *argument_defaultValue;
                 cJSON *argument_defaultValue_value;
+                char *converted_type;
 
                 // create struct for new argument
                 currentArg = (Argument*)malloc(sizeof(Argument));
@@ -82,17 +85,36 @@ void operation_convert(cJSON *definition, hashmap *resolvers) {
 
                 // parse argument type
                 argument_type_type = cJSON_GetObjectItemCaseSensitive(argument_type, "type");
-                argument_type_type_name = cJSON_GetObjectItemCaseSensitive(argument_type_type, "name");
-                argument_type_type_name_value = cJSON_GetObjectItemCaseSensitive(argument_type_type_name, "value");
+                argument_type_name = cJSON_GetObjectItemCaseSensitive(argument_type, "name");
+                if (argument_type_type != NULL) {
+                    // nonNull type
+                    argument_type_type_name = cJSON_GetObjectItemCaseSensitive(argument_type_type, "name");
+                    argument_type_type_name_value = cJSON_GetObjectItemCaseSensitive(argument_type_type_name, "value");
 
-                if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) 
-                        && (argument_type_type_name_value->valuestring != NULL)) {
-                    strcpy(currentArg->argType, argument_type_type_name_value->valuestring);
-                } else {
-                    elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
-                    free_arguments(operation);
-                    free(operation);
-                    goto parse_next_operation;
+                    if (argument_type_type_name_value != NULL && (cJSON_IsString(argument_type_type_name_value)) 
+                            && (argument_type_type_name_value->valuestring != NULL)) {
+                        converted_type = get_config_value(argument_type_type_name_value->valuestring, configEntries, numEntries);
+                        strcpy(currentArg->argType, converted_type);
+                    } else {
+                        elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
+                        free_arguments(operation);
+                        free(operation);
+                        goto parse_next_operation;
+                    }
+                } else if (argument_type_name != NULL) {
+                    // nullable type
+                    argument_type_name_value = cJSON_GetObjectItemCaseSensitive(argument_type_name, "value");
+
+                    if (argument_type_name_value != NULL && (cJSON_IsString(argument_type_name_value)) 
+                            && (argument_type_name_value->valuestring != NULL)) {
+                        converted_type = get_config_value(argument_type_name_value->valuestring, configEntries, numEntries);
+                        strcpy(currentArg->argType, converted_type);
+                    } else {
+                        elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
+                        free_arguments(operation);
+                        free(operation);
+                        goto parse_next_operation;
+                    }
                 }
 
                 // parse argument default value
