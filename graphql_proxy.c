@@ -60,8 +60,17 @@ int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
     return 0;
 }
 
+void sigterm_handler(int sig) {
+    elog(LOG, "Received SIGTERM signal. Cleaning up resources...");
+
+    proc_exit(0);
+}
+
 void
 graphql_proxy_main(Datum main_arg) {
+    pqsignal(SIGTERM, sigterm_handler);
+    BackgroundWorkerUnblockSignals();
+
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
