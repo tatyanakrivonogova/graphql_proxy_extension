@@ -2,8 +2,8 @@
 
 #include "../hashmap/map.h"
 #include "../io_uring/event_handling.h"
-#include "io_uring/multiple_user_access.h"
-#include "postgres_connect/postgres_connect.h"
+#include "../io_uring/multiple_user_access.h"
+#include "../postgres_connect/postgres_connect.h"
 #include "http_parser.h"
 #include "../handlers/handlers.h"
 #include "../libgraphqlparser/c/GraphQLAstNode.h"
@@ -122,7 +122,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
 
         json_query = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
         elog(LOG, "parsed json query: %s\n", json_query);
-        handle_mutation(json_query, resolvers);
+        handle_operation(json_query, resolvers, fd);
         free((void *)json_query);
     }
 

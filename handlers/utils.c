@@ -37,11 +37,13 @@ void insert_string(char *buffer, size_t buffer_size, const char *format, const c
     if (pos != NULL) {
         // copy string before %s
         size_t prefix_length = pos - format;
-        if (prefix_length + strlen(value) + strlen(pos + 2) < buffer_size) {
+        if (prefix_length + 2 + strlen(value) + strlen(pos + 2) < buffer_size) {
             strncpy(buffer, format, prefix_length);
             buffer[prefix_length] = '\0';
 
+            strcat(buffer, "\'");
             strcat(buffer, value);
+            strcat(buffer, "\'");
             strcat(buffer, pos + 2);
         }
     } else {

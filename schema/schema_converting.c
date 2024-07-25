@@ -19,10 +19,22 @@ bool is_type_exists(char* type_name) {
 
 
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
-    // query for adding foreign key
+    // drop old constraint
+    // "ALTER TABLE Message DROP CONSTRAINT IF EXISTS fk_Message_Person_sender;";
     strcat(sql_alter, "ALTER TABLE ");
     strcat(sql_alter, table_name);
-    strcat(sql_alter, " ADD CONSTRAINT IF NOT EXISTS fk_");
+    strcat(sql_alter, " DROP CONSTRAINT IF EXISTS fk_");
+    strcat(sql_alter, table_name);
+    strcat(sql_alter, "_");
+    strcat(sql_alter, another_table_name);
+    strcat(sql_alter, "_");
+    strcat(sql_alter, field_name);
+    strcat(sql_alter, ";");
+    
+    // query for adding foreign key   
+    strcat(sql_alter, "ALTER TABLE ");
+    strcat(sql_alter, table_name);
+    strcat(sql_alter, " ADD CONSTRAINT fk_");
     strcat(sql_alter, table_name);
     strcat(sql_alter, "_");
     strcat(sql_alter, another_table_name);
@@ -261,7 +273,7 @@ hashmap *schema_convert(const char *json_schema) {
         
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
-            exec_query(&conn, sql_create, &res);
+            exec_query(&conn, sql_alter_queries[i], &res);
             handle_query(res);
         }
 

@@ -1,6 +1,8 @@
 #include "../hashmap/map.h"
 #include "../json_graphql/cJSON.h"
-#include "../schema/schema_converting.h"
+#include "../io_uring/event_handling.h"
+#include "../io_uring/multiple_user_access.h"
+#include "../schema/schema.h"
 #include "utils.h"
 #include "defines.h"
 
@@ -69,7 +71,7 @@ set_arguments_to_query_fail:
     return NULL;
 }
 
-void handle_mutation(const char *json_query, hashmap *resolvers) {
+void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
     cJSON *json;
     cJSON *definitions;
     char *query_for_execution;
@@ -186,11 +188,26 @@ void handle_mutation(const char *json_query, hashmap *resolvers) {
             } else {
                 elog(LOG, "Set arguments to query successfully\n");
                 elog(LOG, "Query for execution: %s\n", query_for_execution);
-                return;
+                // return;
+
+                // execute query
+                int index, res;
+                if (get_conn_index(fd, &index)) {
+                    elog(LOG, "execution...\n");
+                    // exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res);
+                    // handle_query(&res);
+                    if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
+                        handle_query(conns[index].pg_res);
+                    } else {
+                        elog(ERROR, "Query execution failed.");
+                    }
+                    elog(LOG, "after handle_query\n");
+                } else {
+                    elog(LOG, "get_conn_index fail\n");
+                }
             }
         }
-        // execute query
-        // TO DO
+        
 handle_operation_fail:
         elog(LOG, "handle_operation_fail\n");
     }

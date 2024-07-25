@@ -1,21 +1,21 @@
 type Person {
-  id: ID!
-  name: [String!]!
+  id: Int!
+  name: String!
 }
 
 type Message {
-  id: ID!
+  id: Int!
   msg: String!
   sender: Person!
   receivers: Person!
 }
 
 type Query {
-  getPerson(id: ID! = 9): Person
-  person(id: ID!): Person
+  getPerson(id: Int! = 9): Person
+  person(id: Int!): Person
 }
 
 type Mutation {
-  createPerson(id: ID! = 8, name: String!): Person
-  updatePerson(id: ID!, name: String!): Person
+  createPerson(id: Int! = 8, name: String!): Person
+  updatePerson(id: Int!, name: String!): Person
 }
