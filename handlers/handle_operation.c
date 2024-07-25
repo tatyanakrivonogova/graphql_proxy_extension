@@ -1,6 +1,7 @@
 #include "../hashmap/map.h"
 #include "../json_graphql/cJSON.h"
 #include "../io_uring/event_handling.h"
+#include "../postgres_connect/postgres_connect.h"
 #include "../io_uring/multiple_user_access.h"
 #include "../schema/schema.h"
 #include "utils.h"
@@ -186,16 +187,13 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 elog(LOG, "Set arguments to query failed\n");
                 goto handle_operation_fail;
             } else {
+                int index;
                 elog(LOG, "Set arguments to query successfully\n");
                 elog(LOG, "Query for execution: %s\n", query_for_execution);
-                // return;
 
                 // execute query
-                int index, res;
                 if (get_conn_index(fd, &index)) {
                     elog(LOG, "execution...\n");
-                    // exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res);
-                    // handle_query(&res);
                     if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
                         handle_query(conns[index].pg_res);
                     } else {

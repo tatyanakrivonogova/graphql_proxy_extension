@@ -107,13 +107,15 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
 // }
 
 void handle_query(PGresult* res) {
+    int rows;
+    int cols;
     if (res == NULL) {
         elog(ERROR, "Received NULL PGresult.");
         return;
     }
 
-    int rows = PQntuples(res);
-    int cols = PQnfields(res);
+    rows = PQntuples(res);
+    cols = PQnfields(res);
 
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
