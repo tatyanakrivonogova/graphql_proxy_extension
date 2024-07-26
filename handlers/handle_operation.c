@@ -195,7 +195,7 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 if (get_conn_index(fd, &index)) {
                     elog(LOG, "execution...\n");
                     if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
-                        handle_query(conns[index].pg_res);
+                        handle_query(&conns[index].pg_res);
                     } else {
                         elog(ERROR, "Query execution failed.");
                     }

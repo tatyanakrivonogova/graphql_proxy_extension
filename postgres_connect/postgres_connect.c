@@ -36,8 +36,14 @@ test_connect(void) {
         elog(LOG, "-------------------------------------------------------");
     }
 
-    //clear used resources
+    // clear used resources
     close_connection(&pg_conn, &res);
+}
+
+void
+clearRes(PGresult** res) {
+    if (*res != NULL) PQclear(*res);
+    *res = NULL;
 }
 
 int 
@@ -59,7 +65,8 @@ create_connection(PGconn** pg_conn, char* conn_info) {
 
 void
 close_connection(PGconn** pg_conn, PGresult **pg_res) {
-    PQclear(*pg_res);
+    //PQclear(*pg_res);
+    clearRes(pg_res);
     PQfinish(*pg_conn);
     elog(LOG, "Libpq connection closed");
 }
@@ -77,59 +84,40 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
     if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
         elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*pg_conn));
-        PQclear(*res);
+        // PQclear(*res);
+        clearRes(res);
         return 0;
     }
     return 1;
 }
 
-// void handle_query(PGresult* res) {
-//     int rows, cols;
-
-//     rows = PQntuples(res);
-//     cols = PQnfields(res);
-
-//     elog(LOG, "Number of rows: %d\n", rows);
-//     elog(LOG, "Number of columns: %d\n", cols);
-//     // Print the column names
-//     for (int i = 0; i < cols; i++) {
-//         elog(LOG, "%s\t", PQfname(res, i));
-//     }
-
-//     // Print all the rows and columns
-//     for (int i = 0; i < rows; i++) {
-//         for (int j = 0; j < cols; j++) {
-//         // Print the column value
-//             elog(LOG, "%s\t", PQgetvalue(res, i, j));
-//         }
-//         elog(LOG, "-------------------------------------------------------");
-//     }
-// }
-
-void handle_query(PGresult* res) {
+void handle_query(PGresult** res) {
     int rows;
     int cols;
-    if (res == NULL) {
+    if (*res == NULL) {
         elog(ERROR, "Received NULL PGresult.");
         return;
     }
 
-    rows = PQntuples(res);
-    cols = PQnfields(res);
+    rows = PQntuples(*res);
+    cols = PQnfields(*res);
 
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
 
     // Print the column names
     for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(res, i));
+        elog(LOG, "%s\t", PQfname(*res, i));
     }
 
     // Print all the rows and columns
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            elog(LOG, "%s\t", PQgetvalue(res, i, j));
+            elog(LOG, "%s\t", PQgetvalue(*res, i, j));
         }
         elog(LOG, "-------------------------------------------------------");
     }
+
+    // PQclear(res);
+    clearRes(res);
 }
