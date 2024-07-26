@@ -91,13 +91,45 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     return 1;
 }
 
+// void handle_query(PGresult** res) {
+//     int rows;
+//     int cols;
+//     if (*res == NULL) {
+//         elog(ERROR, "Received NULL PGresult.");
+//         return;
+//     }
+
+//     rows = PQntuples(*res);
+//     cols = PQnfields(*res);
+
+//     elog(LOG, "Number of rows: %d\n", rows);
+//     elog(LOG, "Number of columns: %d\n", cols);
+
+//     // Print the column names
+//     for (int i = 0; i < cols; i++) {
+//         elog(LOG, "%s\t", PQfname(*res, i));
+//     }
+
+//     // Print all the rows and columns
+//     for (int i = 0; i < rows; i++) {
+//         for (int j = 0; j < cols; j++) {
+//             elog(LOG, "%s\t", PQgetvalue(*res, i, j));
+//         }
+//         elog(LOG, "-------------------------------------------------------");
+//     }
+
+//     // PQclear(res);
+//     clearRes(res);
+// }
+
+
 void handle_query(PGresult** res) {
     int rows;
     int cols;
-    if (*res == NULL) {
-        elog(ERROR, "Received NULL PGresult.");
-        return;
-    }
+    // if (*res == NULL) {
+    //     elog(ERROR, "Received NULL PGresult.");
+    //     return;
+    // }
 
     rows = PQntuples(*res);
     cols = PQnfields(*res);
@@ -105,19 +137,39 @@ void handle_query(PGresult** res) {
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
 
-    // Print the column names
+    // Create JSON response string
+    char jsonResponse[RESPONSE_LENGTH];
+    snprintf(jsonResponse, sizeof(jsonResponse), "{ \"data\": { ");
+
+    // Add column name to response
     for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(*res, i));
+        snprintf(jsonResponse, sizeof(jsonResponse), "%s\"%s\": ", jsonResponse, PQfname(*res, i));
     }
 
-    // Print all the rows and columns
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            elog(LOG, "%s\t", PQgetvalue(*res, i, j));
-        }
-        elog(LOG, "-------------------------------------------------------");
-    }
+    // Add json data to response
+    snprintf(jsonResponse, sizeof(jsonResponse), "%s%s", jsonResponse, PQgetvalue(*res, 0, 0));
 
-    // PQclear(res);
-    clearRes(res);
+    // // Add data to response
+    // for (int i = 0; i < rows; i++) {
+    //     snprintf(jsonResponse, sizeof(jsonResponse), "%s[ ", jsonResponse);
+    //     for (int j = 0; j < cols; j++) {
+    //         snprintf(jsonResponse, sizeof(jsonResponse), "%s\"%s\", ", jsonResponse, PQgetvalue(*res, i, j));
+    //     }
+    //     snprintf(jsonResponse, sizeof(jsonResponse), "%s ], ", jsonResponse);
+    // }
+
+    snprintf(jsonResponse, sizeof(jsonResponse), "%s } }", jsonResponse);
+
+    // Form HTTP response
+    char httpResponse[RESPONSE_LENGTH];
+    if (*res == NULL) {
+        snprintf(httpResponse, sizeof(httpResponse), "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+    } else {
+        elog(LOG, "Received NULL PGresult.");
+        snprintf(httpResponse, sizeof(httpResponse), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+    }
+    
+    elog(LOG, "HTTP Response: %s", httpResponse);
+    // Send HTTP response here
+
 }
