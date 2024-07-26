@@ -199,10 +199,10 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                     } else {
                         elog(ERROR, "Query execution failed.");
                     }
-                    elog(LOG, "after handle_query\n");
                 } else {
                     elog(LOG, "get_conn_index fail\n");
                 }
+                return;
             }
         }
         

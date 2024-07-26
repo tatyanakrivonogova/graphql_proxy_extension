@@ -35,6 +35,7 @@ static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
 
 hashmap *resolvers;
+int listen_socket;
 
 void
 _PG_init(void) {
@@ -63,9 +64,19 @@ int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
 }
 
 void sigterm_handler(int sig) {
-    elog(LOG, "Received SIGTERM signal. Cleaning up resources...");
+    elog(LOG, "----------Received SIGTERM signal. Cleaning up resources...");
 
-    // close(listen_socket);
+    close(listen_socket);
+    hashmap_free(resolvers);
+    closeConns();
+
+    proc_exit(0);
+}
+
+void sigquit_handler(int sig) {
+    elog(LOG, "----------Received SIGQUIT signal. Cleaning up resources...");
+
+    close(listen_socket);
     hashmap_free(resolvers);
     closeConns();
 
@@ -74,13 +85,14 @@ void sigterm_handler(int sig) {
 
 void
 graphql_proxy_main(Datum main_arg) {
+    // set signal handlers
     pqsignal(SIGTERM, sigterm_handler);
+    pqsignal(SIGQUIT, sigquit_handler);
     BackgroundWorkerUnblockSignals();
 
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
-    int listen_socket;
     const int val = 1;
     int error;
 
@@ -96,7 +108,7 @@ graphql_proxy_main(Datum main_arg) {
     const char *json_schema = schema_to_json();
     // parse schema
     resolvers = schema_convert(json_schema);
-    elog(LOG, "after schema_convert\n");
+    free((char *)json_schema);
 
     error = hashmap_iterate(resolvers, print_entry, NULL);
     if (error == -1)
@@ -105,7 +117,7 @@ graphql_proxy_main(Datum main_arg) {
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("socket(): %s\n", errorbuf));
+        ereport(LOG, errmsg("socket(): %s\n", errorbuf));
         return;
     }
 
@@ -113,13 +125,13 @@ graphql_proxy_main(Datum main_arg) {
 
     if (bind(listen_socket, (struct sockaddr *)&sockaddr, sizeof(sockaddr))) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("bind() error: %s\n", errorbuf));
+        ereport(LOG, errmsg("bind() error: %s\n", errorbuf));
         goto socket_bind_fail;
     }
 
     if (listen(listen_socket, DEFAULT_BACKLOG_SIZE)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("listen() error: %s\n", errorbuf));
+        ereport(LOG, errmsg("listen() error: %s\n", errorbuf));
         goto socket_listen_fail;
     }
 
@@ -127,7 +139,7 @@ graphql_proxy_main(Datum main_arg) {
 
     if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
+        ereport(LOG, errmsg("uring_init_params() error: %s\n", errorbuf));
     }
 
     if (!(params.features & IORING_FEAT_FAST_POLL)) {

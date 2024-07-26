@@ -287,7 +287,7 @@ hashmap *schema_convert(const char *json_schema) {
 	cJSON_Delete(json);
     //clear used resources
     close_connection(&conn, &res);
-
+    elog(LOG, "close connection after schema converted\n");
 
     return resolvers;
 }

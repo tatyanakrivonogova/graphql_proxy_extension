@@ -53,6 +53,8 @@ const char *schema_to_json() {
   }
 
   json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+  graphql_node_free(AST);
+  free(buffer);
 //   puts(json);
 //   free((void *)json);
 
