@@ -269,12 +269,12 @@ hashmap *schema_convert(const char *json_schema) {
 
         // execute create table query
         exec_query(&conn, sql_create, &res);
-        handle_query(&res);
+        // handle_query(&res);
         
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
             exec_query(&conn, sql_alter_queries[i], &res);
-            handle_query(&res);
+            // handle_query(&res);
         }
 
         memset(sql_create, 0, QUERY_LENGTH);

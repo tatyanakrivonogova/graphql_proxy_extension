@@ -34,7 +34,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
     char *query = NULL;
     char *response = NULL;
     size_t query_len;
-    size_t response_len;
     int err;
     const char *error;
     struct GraphQLAstNode * AST;
@@ -88,7 +87,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         elog(LOG, "query is empty\n");
         query_len = 0;
     } else {
-        char *response_begin = "HTTP/1.1 200 OK\nContent-Type: text/plain;charset=UTF-8\n\n";
+        // char *response_begin = "HTTP/1.1 200 OK\nContent-Type: text/plain;charset=UTF-8\n\n";
         
         // save query
         query_len = request + request_len - query_begin - 2;
@@ -97,17 +96,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         query[query_len] = '\0';
         strncpy(query, query_begin + 2, query_len);
         elog(LOG, "query_len: %ld query: %s\n", query_len, query);
-
-                // save response
-        response_len = query_len + strlen(response_begin);
-        response = (char*)malloc(response_len+1);
-        if (!response) goto response_malloc_fail;
-        response[response_len] = '\0';
-        strncpy(response, response_begin, strlen(response_begin));
-        strncpy(response + strlen(response_begin), query_begin + 2, query_len);
-        elog(LOG, "response_len: %ld response: %s\n", response_len, response);
-        strncpy(bufs[fd], response, response_len);
-        *outputSize = response_len;
     }
     elog(LOG, "buffer after query pars: %.*s\n", (int)query_len, query);
 
@@ -122,8 +110,30 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
 
         json_query = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
         elog(LOG, "parsed json query: %s\n", json_query);
-        handle_operation(json_query, resolvers, fd);
+        response = handle_operation(json_query, resolvers, fd);
+
+        // copy response for sending
+        if (response != NULL) {
+            elog(LOG, "response_len: %ld response: %s\n", strlen(response), response);
+            strcpy(bufs[fd], response);
+            *outputSize = strlen(response);
+            free(response);
+            response = NULL;
+        } else {
+            // send error
+            response = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n";
+            strcpy(bufs[fd], response);
+            *outputSize = strlen(response);
+            response = NULL;
+        }
+
         free((void *)json_query);
+    } else {
+        // send http ok
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n";
+        strcpy(bufs[fd], response);
+        *outputSize = strlen(response);
+        response = NULL;
     }
 
     //test sql query execution
@@ -136,8 +146,6 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
 
 free_memory:
     if (response) free(response);
-response_malloc_fail:
-    if (query) free(query);
 query_malloc_fail:
     if (parsed_header_value) free(parsed_header_value);
 parsed_header_value_malloc_fail:

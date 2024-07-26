@@ -89,8 +89,12 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
 }
 
 
-void handle_query(PGresult** res) {
-    char httpResponse[RESPONSE_LENGTH];
+char *handle_query(PGresult** res) {
+    char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
+    if (httpResponse == NULL) {
+        elog(LOG, "httpResponse malloc failed\n");
+        return NULL;
+    }
     int rows;
     int cols;
 
@@ -102,27 +106,28 @@ void handle_query(PGresult** res) {
 
     // Create JSON response string
     char jsonResponse[RESPONSE_LENGTH];
-    snprintf(jsonResponse, sizeof(jsonResponse), "{ \"data\": { ");
+    snprintf(jsonResponse, RESPONSE_LENGTH, "{ \"data\": { ");
 
     // Add column name to response
     for (int i = 0; i < cols; i++) {
-        snprintf(jsonResponse, sizeof(jsonResponse), "%s\"%s\": ", jsonResponse, PQfname(*res, i));
+        snprintf(jsonResponse, RESPONSE_LENGTH, "%s\"%s\": ", jsonResponse, PQfname(*res, i));
     }
 
     // Add json data to response
-    snprintf(jsonResponse, sizeof(jsonResponse), "%s%s", jsonResponse, PQgetvalue(*res, 0, 0));
+    snprintf(jsonResponse, RESPONSE_LENGTH, "%s%s", jsonResponse, PQgetvalue(*res, 0, 0));
 
-    snprintf(jsonResponse, sizeof(jsonResponse), "%s } }", jsonResponse);
+    snprintf(jsonResponse, RESPONSE_LENGTH, "%s } }", jsonResponse);
+
+    elog(LOG, "jsonResponse: %s\n", jsonResponse);
 
     // Form HTTP response
     if (*res == NULL) {
-        snprintf(httpResponse, sizeof(httpResponse), "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
     } else {
         elog(LOG, "Received NULL PGresult.");
-        snprintf(httpResponse, sizeof(httpResponse), "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
     }
     
     elog(LOG, "HTTP Response: %s", httpResponse);
-    // Send HTTP response here
-
+    return httpResponse;
 }
