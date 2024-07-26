@@ -125,13 +125,13 @@ graphql_proxy_main(Datum main_arg) {
 
     if (bind(listen_socket, (struct sockaddr *)&sockaddr, sizeof(sockaddr))) {
         char* errorbuf = strerror(errno);
-        ereport(LOG, errmsg("bind() error: %s\n", errorbuf));
+        ereport(ERROR, errmsg("bind() error: %s\n", errorbuf));
         goto socket_bind_fail;
     }
 
     if (listen(listen_socket, DEFAULT_BACKLOG_SIZE)) {
         char* errorbuf = strerror(errno);
-        ereport(LOG, errmsg("listen() error: %s\n", errorbuf));
+        ereport(ERROR, errmsg("listen() error: %s\n", errorbuf));
         goto socket_listen_fail;
     }
 
@@ -139,11 +139,12 @@ graphql_proxy_main(Datum main_arg) {
 
     if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        ereport(LOG, errmsg("uring_init_params() error: %s\n", errorbuf));
+        if (strcmp(error, "Success") != 0) 
+            ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
     }
 
     if (!(params.features & IORING_FEAT_FAST_POLL)) {
-        elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
+        elog(ERROR, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
     }
     
     add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);

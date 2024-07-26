@@ -17,6 +17,11 @@ bool is_type_exists(char* type_name) {
     return false;
 }
 
+void free_sql_alter_queries(char **sql_alter_queries, size_t num) {
+    for (size_t i = 0; i < num; ++i)
+        if (sql_alter_queries[i] != NULL) free(sql_alter_queries[i]);
+}
+
 
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
     // drop old constraint
@@ -71,16 +76,17 @@ hashmap *schema_convert(const char *json_schema) {
     hashmap *resolvers = hashmap_create();
 	if (resolvers == NULL) {
 		printf("schema_convert(): failed while hashmap init\n");
-		return NULL;
+		goto hashmap_create_fail;
 	}
 
     if (!create_connection(&conn, conn_info)) {
-        return NULL;
+        goto create_connection_fail;
     }
 
     filename = "../contrib/graphql_proxy/schema/config.txt";
     configEntries = load_config_file(filename, &numEntries);
-    if (configEntries == NULL) return NULL;
+    if (configEntries == NULL)
+        goto load_config_file_fail;
 
 	// parse the JSON data
 	json = cJSON_Parse(json_schema);
@@ -89,12 +95,14 @@ hashmap *schema_convert(const char *json_schema) {
 		if (error_ptr != NULL) {
 			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_schema);
 		}
-		cJSON_Delete(json);
-        free_config(configEntries, numEntries);
-		return NULL;
+		goto json_parse_fail;
 	}
 
     sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
+    if (sql_create == NULL) {
+        elog(LOG, "sql_create malloc failed\n");
+        goto sql_create_fail;
+    }
     sql_alter_queries_num = 0;
 
 	// access the JSON data
@@ -120,7 +128,7 @@ hashmap *schema_convert(const char *json_schema) {
         definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
             if (strcmp(definition_name_value->valuestring, "Mutation") == 0 || (strcmp(definition_name_value->valuestring, "Query") == 0)) {
-                // parse operation
+                // convert operation
                 operation_convert(definition, resolvers, configEntries, numEntries);
                 continue;
             }
@@ -198,6 +206,10 @@ hashmap *schema_convert(const char *json_schema) {
                             strcat(sql_create, "INT ");
 
                             sql_alter_queries[sql_alter_queries_num] = (char*)calloc(QUERY_LENGTH, sizeof(char));
+                            if (sql_alter_queries[sql_alter_queries_num] == NULL) {
+                                elog(LOG, "sql_alter_query malloc failed\n");
+                                goto sql_alter_malloc_fail;
+                            }
                             create_foreign_key(sql_alter_queries[sql_alter_queries_num], 
                                              type_name_value->valuestring, 
                                              field_type_type_name_value->valuestring, 
@@ -270,24 +282,39 @@ hashmap *schema_convert(const char *json_schema) {
         // execute create table query
         exec_query(&conn, sql_create, &res);
         // handle_query(&res);
-        
+        //
+        clearRes(&res);        
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
             exec_query(&conn, sql_alter_queries[i], &res);
             // handle_query(&res);
+            //
+            clearRes(&res);
         }
 
         memset(sql_create, 0, QUERY_LENGTH);
         free_alter_queries(sql_alter_queries, sql_alter_queries_num);
     }
 
-    free(sql_create);
-    free_config(configEntries, numEntries);
-	// delete the JSON object
-	cJSON_Delete(json);
-    //clear used resources
-    close_connection(&conn, &res);
-    elog(LOG, "close connection after schema converted\n");
 
+    free(sql_create);
+    cJSON_Delete(json);
+    free_config(configEntries, numEntries);
+    close_connection(&conn, &res);
     return resolvers;
+
+
+sql_alter_malloc_fail:
+    free_sql_alter_queries(sql_alter_queries, sql_alter_queries_num);
+    free(sql_create);
+sql_create_fail:
+json_parse_fail:
+    cJSON_Delete(json);
+    free_config(configEntries, numEntries);
+    close_connection(&conn, &res);
+create_connection_fail:
+load_config_file_fail:
+    free(resolvers);
+hashmap_create_fail:
+    return NULL;
 }

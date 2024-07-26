@@ -8,6 +8,8 @@
 
 bool is_type_exists(char* type_name);
 
+void free_sql_alter_queries(char **sql_alter_queries, size_t num);
+
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name);
 
 void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num);
