@@ -13,7 +13,6 @@ test_connect(void) {
         return;
     }
 
-    // char* query = "SELECT * FROM table1;";
     //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
     exec_query(&pg_conn, "SELECT * FROM table1;", &res);
     exec_query(&pg_conn, query, &res);
@@ -65,7 +64,6 @@ create_connection(PGconn** pg_conn, char* conn_info) {
 
 void
 close_connection(PGconn** pg_conn, PGresult **pg_res) {
-    //PQclear(*pg_res);
     clearRes(pg_res);
     PQfinish(*pg_conn);
     elog(LOG, "Libpq connection closed");
@@ -84,52 +82,17 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
     if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
         elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*pg_conn));
-        // PQclear(*res);
         clearRes(res);
         return 0;
     }
     return 1;
 }
 
-// void handle_query(PGresult** res) {
-//     int rows;
-//     int cols;
-//     if (*res == NULL) {
-//         elog(ERROR, "Received NULL PGresult.");
-//         return;
-//     }
-
-//     rows = PQntuples(*res);
-//     cols = PQnfields(*res);
-
-//     elog(LOG, "Number of rows: %d\n", rows);
-//     elog(LOG, "Number of columns: %d\n", cols);
-
-//     // Print the column names
-//     for (int i = 0; i < cols; i++) {
-//         elog(LOG, "%s\t", PQfname(*res, i));
-//     }
-
-//     // Print all the rows and columns
-//     for (int i = 0; i < rows; i++) {
-//         for (int j = 0; j < cols; j++) {
-//             elog(LOG, "%s\t", PQgetvalue(*res, i, j));
-//         }
-//         elog(LOG, "-------------------------------------------------------");
-//     }
-
-//     // PQclear(res);
-//     clearRes(res);
-// }
-
 
 void handle_query(PGresult** res) {
+    char httpResponse[RESPONSE_LENGTH];
     int rows;
     int cols;
-    // if (*res == NULL) {
-    //     elog(ERROR, "Received NULL PGresult.");
-    //     return;
-    // }
 
     rows = PQntuples(*res);
     cols = PQnfields(*res);
@@ -149,19 +112,9 @@ void handle_query(PGresult** res) {
     // Add json data to response
     snprintf(jsonResponse, sizeof(jsonResponse), "%s%s", jsonResponse, PQgetvalue(*res, 0, 0));
 
-    // // Add data to response
-    // for (int i = 0; i < rows; i++) {
-    //     snprintf(jsonResponse, sizeof(jsonResponse), "%s[ ", jsonResponse);
-    //     for (int j = 0; j < cols; j++) {
-    //         snprintf(jsonResponse, sizeof(jsonResponse), "%s\"%s\", ", jsonResponse, PQgetvalue(*res, i, j));
-    //     }
-    //     snprintf(jsonResponse, sizeof(jsonResponse), "%s ], ", jsonResponse);
-    // }
-
     snprintf(jsonResponse, sizeof(jsonResponse), "%s } }", jsonResponse);
 
     // Form HTTP response
-    char httpResponse[RESPONSE_LENGTH];
     if (*res == NULL) {
         snprintf(httpResponse, sizeof(httpResponse), "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
     } else {
