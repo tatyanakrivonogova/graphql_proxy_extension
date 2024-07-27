@@ -1,6 +1,7 @@
 #include "postgres_connect.h"
 
 #include "postgres.h"
+#include <unistd.h>
 
 void 
 test_connect(void) {
@@ -90,13 +91,13 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
 
 
 char *handle_query(PGresult** res) {
+    int rows;
+    int cols;
     char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
     if (httpResponse == NULL) {
         elog(LOG, "httpResponse malloc failed\n");
         return NULL;
     }
-    int rows;
-    int cols;
 
     rows = PQntuples(*res);
     cols = PQnfields(*res);

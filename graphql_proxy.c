@@ -12,8 +12,10 @@
 #include "executor/executor.h"
 #include "postmaster/bgworker.h"
 #include "miscadmin.h"
+#include "storage/proc.h"
 #include "postmaster/interrupt.h"
 #include "tcop/tcopprot.h"
+#include "storage/ipc.h"
 
 #include <arpa/inet.h>
 #include <arpa/inet.h>
@@ -25,6 +27,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <netinet/in.h>
+
 
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
@@ -39,6 +42,8 @@ void sigquit_handler(int sig);
 
 hashmap *resolvers;
 int listen_socket = 0;
+const char *json_schema = NULL;
+
 
 void
 _PG_init(void) {
@@ -61,8 +66,15 @@ graphql_proxy_start_worker(void) {
 }
 
 void shutdown_graphql_proxy_server() {
-    if (listen_socket != 0) close(listen_socket);
+    if ((listen_socket != 0) && (listen_socket != -1)) close(listen_socket);
+    listen_socket = 0;
+
     if (resolvers) hashmap_free(resolvers);
+    resolvers = NULL;
+
+    if (json_schema) free((char *) json_schema);
+    json_schema = NULL;
+
     closeConns();
 
     proc_exit(0);
@@ -70,13 +82,13 @@ void shutdown_graphql_proxy_server() {
 
 void sigterm_handler(int sig) {
     if (sig == SIGTERM) {
-        elog(LOG, "----------Received SIGTERM signal---------------");
+        elog(LOG, "graphql_proxy_main(): ----------Received SIGTERM signal---------------");
         shutdown_graphql_proxy_server();   
     } 
 }
 
 void sigquit_handler(int sig) {
-    elog(LOG, "----------Received SIGQUIT signal----------------");
+    elog(LOG, "graphql_proxy_main(): ----------Received SIGQUIT signal----------------");
     //check signal
     shutdown_graphql_proxy_server();
 }
@@ -95,8 +107,6 @@ graphql_proxy_main(Datum main_arg) {
     };
     struct sockaddr_in client_addr;
     socklen_t client_len;
-    const char *json_schema;
-
 
     // set signal handlers
     pqsignal(SIGTERM, sigterm_handler);
@@ -108,60 +118,73 @@ graphql_proxy_main(Datum main_arg) {
     // get json schema
     json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
     if (!json_schema) {
-        elog(ERROR, "Getting json representation of schema failed\n");
+        ereport(ERROR, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
         shutdown_graphql_proxy_server();
     }
 
-    // parse schema
+    // converting GraphQL schema to PostgresQL schema
     resolvers = schema_convert(json_schema);
     free((char *)json_schema);
+    json_schema = NULL;
 
+    // create server socket
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
-        ereport(LOG, errmsg("socket(): %s\n", errorbuf));
-        return;
+        ereport(ERROR, errmsg("graphql_proxy_main(): socket() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
-    setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1) {
+        char* errorbuf = strerror(errno);
+        ereport(ERROR, errmsg("graphql_proxy_main(): setsockopt() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
+    }
 
     if (bind(listen_socket, (struct sockaddr *)&sockaddr, sizeof(sockaddr))) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("bind() error: %s\n", errorbuf));
-        goto socket_bind_fail;
+        ereport(ERROR, errmsg("graphql_proxy_main(): bind() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
+    // to do: DEFAULT_BACKLOG_SIZE from config
     if (listen(listen_socket, DEFAULT_BACKLOG_SIZE)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("listen() error: %s\n", errorbuf));
-        goto socket_listen_fail;
+        ereport(ERROR, errmsg("graphql_proxy_main(): listen() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
     memset(&params, 0, sizeof(params));
-
     if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        if (strcmp(errorbuf, "Success") != 0) 
-            ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
+        ereport(ERROR, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
     if (!(params.features & IORING_FEAT_FAST_POLL)) {
-        elog(ERROR, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
+        ereport(ERROR, errmsg("graphql_proxy_main(): IORING_FEAT_FAST_POLL is not available in the kernel\n"));
+        shutdown_graphql_proxy_server();
     }
     
+    // start accepting clients
     add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
 
     while (true)
     {
-        int ret;
         struct io_uring_cqe *cqe;
         struct io_uring_cqe *cqes[DEFAULT_BACKLOG_SIZE];
 
+        // send sqes to execute in the kernel
         io_uring_submit(&ring);
 
-        ret = io_uring_wait_cqe(&ring, &cqe);
-        assert(ret == 0);
+        // wait for cqes
+        if (io_uring_wait_cqe(&ring, &cqe) != 0) {
+            char* errorbuf = strerror(errno);
+            ereport(ERROR, errmsg("graphql_proxy_main(): io_uring_wait_cqe() error\nError: %s\n", errorbuf));
+            shutdown_graphql_proxy_server();
+        }
 
+        // get array of cqes
         cqe_count = io_uring_peek_batch_cqe(&ring, cqes, sizeof(cqes) / sizeof(cqes[0]));
 
         for (int i = 0; i < cqe_count; i++) {
@@ -172,34 +195,27 @@ graphql_proxy_main(Datum main_arg) {
             type = user_data->type;
 
             if (type == ACCEPT) {
-                int sock_conn_fd = cqe->res;
+                int sock_conn_fd = cqe->res; // add sock_conn_fd in array to close if proxy shutdown happens???
                 add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
                 add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN);
             } else if (type == READ) {
                 int bytes_read = cqe->res;
                 if (bytes_read <= 0) {
-                    elog(LOG, "-------socket shutdown--------\n");
+                    elog(LOG, "graphql_proxy_main(): client %d disconnected\n", user_data->fd);
                     socket_close(user_data, SHUT_RDWR);
-                    // shutdown(user_data->fd, SHUT_RDWR);
-                    // free_conn_index(user_data->fd); 
                 } else {
-                    //parse input
+                    // handle http-request
                     int outputSize;
                     parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd, resolvers);
                     add_socket_write(&ring, user_data->fd, outputSize);
-                    // printConns();
                 }
             } else if (type == WRITE) {
                 add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
-                // elog(LOG, "shutdown socket on fd: %d", user_data->fd);
-                // shutdown(user_data->fd, SHUT_RDWR);
             }
+
+            // mark cqe as handled
             io_uring_cqe_seen(&ring, cqe);
         }
     }
-
-socket_listen_fail:
-socket_bind_fail:
-    close(listen_socket);
     return;
 }
