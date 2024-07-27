@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+size_t test_number = 1;
+
 int findDiff(const char * buffer, const char * expectedResponse) {
     for (int i = 0; i < strlen(buffer); ++i) {
         if (buffer[i] != expectedResponse[i]) return i;
@@ -41,9 +43,9 @@ void check(int sd, const char *request, const char *expectedResponse) {
     printf("buffer: %ld \nexpected: %ld\n", strlen(buffer), strlen(expectedResponse));
     int pos;
     if ((pos = strcmp(buffer, expectedResponse)) == 0) {
-        printf("Test: OK\n");
+        printf("\t\tTest %ld: OK\n", test_number++);
     } else {
-        printf("Test: FAIL\n");
+        printf("\t\tTest %ld: FAIL\n", test_number++);
         if (strlen(buffer) != strlen(expectedResponse)) {
             printf("Different length: buffer = %ld expectedResponse = %ld\n", strlen(buffer), strlen(expectedResponse));
             // for (int i = 0; i < strlen(expectedResponse); ++i) {
@@ -100,8 +102,11 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 8)\n}", 
-        "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}] } }");
+    // check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 8)\n}", 
+    //           "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}] } }");
+
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\")\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
     printf("All tests was executed\n");
     return 0;
