@@ -33,9 +33,12 @@
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
+void shutdown_graphql_proxy_server();
+void sigterm_handler(int sig);
+void sigquit_handler(int sig);
 
 hashmap *resolvers;
-int listen_socket;
+int listen_socket = 0;
 
 void
 _PG_init(void) {
@@ -57,44 +60,33 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
-int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
-{
-	elog(LOG, "Entry \"%s\": %s\n", (char *)key, (char *)value);
-    return 0;
+void shutdown_graphql_proxy_server() {
+    if (listen_socket != 0) close(listen_socket);
+    if (resolvers) hashmap_free(resolvers);
+    closeConns();
+
+    proc_exit(0);
 }
 
 void sigterm_handler(int sig) {
-    elog(LOG, "----------Received SIGTERM signal. Cleaning up resources...");
-
-    close(listen_socket);
-    hashmap_free(resolvers);
-    closeConns();
-
-    proc_exit(0);
+    if (sig == SIGTERM) {
+        elog(LOG, "----------Received SIGTERM signal---------------");
+        shutdown_graphql_proxy_server();   
+    } 
 }
 
 void sigquit_handler(int sig) {
-    elog(LOG, "----------Received SIGQUIT signal. Cleaning up resources...");
-
-    close(listen_socket);
-    hashmap_free(resolvers);
-    closeConns();
-
-    proc_exit(0);
+    elog(LOG, "----------Received SIGQUIT signal----------------");
+    //check signal
+    shutdown_graphql_proxy_server();
 }
 
 void
 graphql_proxy_main(Datum main_arg) {
-    // set signal handlers
-    pqsignal(SIGTERM, sigterm_handler);
-    pqsignal(SIGQUIT, sigquit_handler);
-    BackgroundWorkerUnblockSignals();
-
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
     const int val = 1;
-    int error;
 
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
@@ -102,17 +94,27 @@ graphql_proxy_main(Datum main_arg) {
         .sin_addr.s_addr = INADDR_ANY,
     };
     struct sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
+    socklen_t client_len;
+    const char *json_schema;
+
+
+    // set signal handlers
+    pqsignal(SIGTERM, sigterm_handler);
+    pqsignal(SIGQUIT, sigquit_handler);
+    BackgroundWorkerUnblockSignals();
+
+    client_len = sizeof(client_addr);
 
     // get json schema
-    const char *json_schema = schema_to_json();
+    json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
+    if (!json_schema) {
+        elog(ERROR, "Getting json representation of schema failed\n");
+        shutdown_graphql_proxy_server();
+    }
+
     // parse schema
     resolvers = schema_convert(json_schema);
     free((char *)json_schema);
-
-    error = hashmap_iterate(resolvers, print_entry, NULL);
-    if (error == -1)
-        elog(LOG, "!!!---------hashmap_iterate error\n");
 
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
@@ -139,7 +141,7 @@ graphql_proxy_main(Datum main_arg) {
 
     if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        if (strcmp(error, "Success") != 0) 
+        if (strcmp(errorbuf, "Success") != 0) 
             ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
     }
 
