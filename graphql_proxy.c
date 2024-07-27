@@ -75,7 +75,7 @@ void shutdown_graphql_proxy_server() {
     if (json_schema) free((char *) json_schema);
     json_schema = NULL;
 
-    closeConns();
+    close_conns();
 
     proc_exit(0);
 }
@@ -195,7 +195,7 @@ graphql_proxy_main(Datum main_arg) {
             type = user_data->type;
 
             if (type == ACCEPT) {
-                int sock_conn_fd = cqe->res; // add sock_conn_fd in array to close if proxy shutdown happens???
+                int sock_conn_fd = cqe->res;
                 add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
                 add_socket_read(&ring, sock_conn_fd, MAX_MESSAGE_LEN);
             } else if (type == READ) {
