@@ -9,6 +9,10 @@
 
 #define BUFFER_SIZE 1024
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 int findDiff(const char * buffer, const char * expectedResponse) {
     for (int i = 0; i < strlen(buffer); ++i) {
         if (buffer[i] != expectedResponse[i]) return i;
@@ -41,7 +45,10 @@ void check(int sd, const char *request, const char *expectedResponse) {
     } else {
         printf("Test: FAIL\n");
         if (strlen(buffer) != strlen(expectedResponse)) {
-            printf("Different length: buffer = %ld expectedResponse = %ld", strlen(buffer), strlen(expectedResponse));
+            printf("Different length: buffer = %ld expectedResponse = %ld\n", strlen(buffer), strlen(expectedResponse));
+            // for (int i = 0; i < strlen(expectedResponse); ++i) {
+            //     printf("buf[%d] = %d exp[%d] = %d\n", i, buffer[i], i, expectedResponse[i]);
+            // }
             return;
         }
         size_t diff = findDiff(buffer, expectedResponse);
@@ -93,29 +100,9 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    check(sd, "POST /query HTTP/1.1\r\n"
-        "Accept-Encoding: gzip, deflate, br, zstd\r\n"
-        "Accept-Language: ru,en;q=0.9\r\n"
-        "Connection: keep-alive\r\n"
-        "Content-Length: 104\r\n"
-        "Host: localhost:8080\r\n"
-        "Origin: http://localhost:8080\r\n"
-        "Referer: http://localhost:8080/\r\n"
-        "Accept: application/json, multipart/mixed\r\n"
-        "Content-type: application/json\r\n"
-        "\r\n"
-        "query {\r\n"
-        "  getPerson(id: 8)\r\n"
-        "}", 
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: application/json\r\n"
-        "\r\n"
-        "{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n"
-        " {\"id\":8,\"name\":\"Ben\"}, \n"
-        " {\"id\":8,\"name\":\"Tom\"}, \n"
-        " {\"id\":8,\"name\":\"Tom\"}, \n"
-        " {\"id\":8,\"name\":\"Tom\"}] } }");
-    
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 8)\n}", 
+        "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}] } }");
+
     printf("All tests was executed\n");
     return 0;
 }

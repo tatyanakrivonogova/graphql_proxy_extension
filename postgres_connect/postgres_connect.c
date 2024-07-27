@@ -122,10 +122,10 @@ char *handle_query(PGresult** res) {
 
     // Form HTTP response
     if (*res == NULL) {
-        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n%s", jsonResponse);
     } else {
         elog(LOG, "Received NULL PGresult.");
-        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 200 OK\nContent-Type: application/json\n\n%s", jsonResponse);
     }
     
     elog(LOG, "HTTP Response: %s", httpResponse);

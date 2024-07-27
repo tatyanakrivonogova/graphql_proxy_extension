@@ -121,7 +121,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
             response = NULL;
         } else {
             // send error
-            response = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\n\r\n";
+            response = "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n";
             strcpy(bufs[fd], response);
             *outputSize = strlen(response);
             response = NULL;
@@ -130,7 +130,7 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         free((void *)json_query);
     } else {
         // send http ok
-        response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n";
+        response = "HTTP/1.1 200 OK\nContent-Type: application/json\n\n";
         strcpy(bufs[fd], response);
         *outputSize = strlen(response);
         response = NULL;
