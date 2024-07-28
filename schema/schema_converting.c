@@ -26,7 +26,7 @@ void free_sql_alter_queries(char **sql_alter_queries, size_t num) {
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
     // drop old constraint
     // "ALTER TABLE Message DROP CONSTRAINT IF EXISTS fk_Message_Person_sender;";
-    strcat(sql_alter, "ALTER TABLE ");
+    strcat(sql_alter, "ALTER TABLE graphql_proxy.");
     strcat(sql_alter, table_name);
     strcat(sql_alter, " DROP CONSTRAINT IF EXISTS fk_");
     strcat(sql_alter, table_name);
@@ -37,7 +37,7 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
     strcat(sql_alter, ";");
     
     // query for adding foreign key   
-    strcat(sql_alter, "ALTER TABLE ");
+    strcat(sql_alter, "ALTER TABLE graphql_proxy.");
     strcat(sql_alter, table_name);
     strcat(sql_alter, " ADD CONSTRAINT fk_");
     strcat(sql_alter, table_name);
@@ -47,7 +47,7 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
     strcat(sql_alter, field_name);
     strcat(sql_alter, " FOREIGN KEY (");
     strcat(sql_alter, field_name);
-    strcat(sql_alter, ") REFERENCES ");
+    strcat(sql_alter, ") REFERENCES graphql_proxy.");
     strcat(sql_alter, another_table_name);
     strcat(sql_alter, "(pk_");
     strcat(sql_alter, another_table_name);
@@ -62,6 +62,7 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
 
 hashmap *schema_convert(const char *json_schema, const char* file_types_reflection) {
     char *sql_create;
+    char *sql_create_schema;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num;
     size_t numEntries;
@@ -71,6 +72,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     char *conn_info = "dbname=postgres host=localhost port=5432";
     PGconn *conn;
     PGresult *res;
+    int status;
 
     hashmap *resolvers = hashmap_create();
 	if (resolvers == NULL) {
@@ -92,19 +94,33 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 	if (json == NULL) {
 		const char *error_ptr = cJSON_GetErrorPtr();
 		if (error_ptr != NULL) {
-			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_schema);
+			elog(LOG, "schema_convert(): Parsing json schema failed.\n Error: %s %ld\n", error_ptr, error_ptr - json_schema);
 		}
 		goto json_parse_fail;
 	}
 
+    // query for drop and create schema
+    sql_create_schema = (char *)calloc(QUERY_LENGTH, sizeof(char));
+    if (sql_create_schema == NULL) {
+        elog(LOG, "schema_convert(): sql_create_schema malloc failed\n");
+        goto sql_create_schema_fail;
+    }
+    strcpy(sql_create_schema, "DROP SCHEMA IF EXISTS graphql_proxy CASCADE; CREATE SCHEMA graphql_proxy;");
+
+    // execute create schema query
+    status = exec_query(&conn, sql_create_schema, &res);
+    if (status == 0) {
+        goto exec_create_schema_fail;
+    }
+    clearRes(&res);
+
     sql_create = (char*)calloc(QUERY_LENGTH, sizeof(char));
     if (sql_create == NULL) {
-        elog(LOG, "sql_create malloc failed\n");
+        elog(LOG, "schema_convert(): sql_create malloc failed\n");
         goto sql_create_fail;
     }
     sql_alter_queries_num = 0;
 
-	// access the JSON data
 	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
 
     types.numCreatedTypes = 0;
@@ -117,7 +133,6 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         cJSON *type_name;
         cJSON *type_name_value;
         cJSON *fields;
-        int status;
         
         definition = cJSON_GetArrayItem(definitions, i);
         definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
@@ -135,13 +150,13 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         }
 
         
-        strcpy(sql_create, "CREATE TABLE IF NOT EXISTS ");
+        strcpy(sql_create, "CREATE TABLE IF NOT EXISTS graphql_proxy.");
         type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
         type_name_value = cJSON_GetObjectItemCaseSensitive(type_name, "value");
 
         // found name of table
         if (cJSON_IsString(type_name_value) && (type_name_value->valuestring != NULL)) {
-            elog(LOG, "table[%d]: %s\n", i, type_name_value->valuestring);
+            elog(LOG, "schema_convert(): table[%d]: %s\n", i, type_name_value->valuestring);
             strcat(sql_create, type_name_value->valuestring);
             strcat(sql_create, "(");
 
@@ -152,7 +167,6 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
             // add type to types array
             strcpy(types.createdTypes[types.numCreatedTypes++], type_name_value->valuestring);
-            elog(LOG, "--- types number: %ld\n", types.numCreatedTypes);
         }
 
         fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
@@ -177,7 +191,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
             // found name of field
             if (cJSON_IsString(field_name_value) && (field_name_value->valuestring != NULL)) {
-                elog(LOG, "\tfield[%d]: %s\n", j, field_name_value->valuestring);
+                elog(LOG, "schema_convert(): \tfield[%d]: %s\n", j, field_name_value->valuestring);
                 strcat(sql_create, field_name_value->valuestring);
                 strcat(sql_create, " ");
             }
@@ -199,7 +213,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                 if (cJSON_IsString(field_type_type_name_value) && (field_type_type_name_value->valuestring != NULL)) {
                     char *convertedType;
                     
-                    elog(LOG, "\t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring);
+                    elog(LOG, "schema_convert(): \t\tfield_type[%d]: %s\n", j, field_type_type_name_value->valuestring);
                     convertedType = get_config_value(field_type_type_name_value->valuestring, configEntries, numEntries);
                     if (convertedType == NULL) {
                         if (is_type_exists(field_type_type_name_value->valuestring)) {
@@ -207,7 +221,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
                             sql_alter_queries[sql_alter_queries_num] = (char*)calloc(QUERY_LENGTH, sizeof(char));
                             if (sql_alter_queries[sql_alter_queries_num] == NULL) {
-                                elog(LOG, "sql_alter_query malloc failed\n");
+                                elog(LOG, "schema_convert(): sql_alter_query malloc failed\n");
                                 goto sql_alter_malloc_fail;
                             }
                             create_foreign_key(sql_alter_queries[sql_alter_queries_num], 
@@ -215,10 +229,10 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                                              field_type_type_name_value->valuestring, 
                                              field_name_value->valuestring);
 
-                            elog(LOG, "sql_alter: %s\n", sql_alter_queries[sql_alter_queries_num]);
+                            elog(LOG, "schema_convert(): sql_alter: %s\n", sql_alter_queries[sql_alter_queries_num]);
                             ++sql_alter_queries_num;
                         } else {
-                            elog(LOG, "Type is not found: %s\n", field_type_type_name_value->valuestring);
+                            elog(LOG, "schema_convert(): Type is not found: %s\n", field_type_type_name_value->valuestring);
                         }
                     } else {
                         strcat(sql_create, convertedType);
@@ -252,17 +266,19 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                         && (field_type_type_type_type_name_value->valuestring != NULL)) {
                         char *convertedType;
                         
-                        elog(LOG, "\t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
+                        elog(LOG, "schema_convert(): \t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
                         convertedType = get_config_value(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
                         if (convertedType == NULL) {
-                            elog(LOG, "Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
+                            elog(LOG, "schema_convert(): Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
                         } else {
                             strcat(sql_create, convertedType);
                             strcat(sql_create, " ARRAY ");
                         }
                     }
                 } else {
-                    elog(LOG, "Nested lists is not supported\n");
+                    elog(LOG, "schema_convert(): Nested lists is not supported\n");
+                    //free resources
+                    //
                     return NULL;
                 }
             }
@@ -271,25 +287,25 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
             // found kind of field
             if (cJSON_IsString(field_type_kind) && (field_type_kind->valuestring != NULL)) {
-                elog(LOG, "\t\tfield_kind[%d]: %s\n", j, field_type_kind->valuestring);
+                elog(LOG, "schema_convert(): \t\tfield_kind[%d]: %s\n", j, field_type_kind->valuestring);
                 if (strcmp(field_type_kind->valuestring, "NonNullType") == 0)
                     strcat(sql_create, "NOT NULL");
             }
         }
         strcat(sql_create, ");");
-        elog(LOG, "sql_create query: %s\n", sql_create);
+        elog(LOG, "schema_convert(): sql_create query: %s\n", sql_create);
 
         // execute create table query
         status = exec_query(&conn, sql_create, &res);
         if (status == 0) {
-            goto exec_schema_fail;
+            goto exec_create_fail;
         }
         clearRes(&res);        
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
             status = exec_query(&conn, sql_alter_queries[i], &res);
             if (status == 0) {
-                goto exec_schema_fail;
+                goto exec_alter_fail;
             }
             clearRes(&res);
         }
@@ -306,13 +322,17 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     return resolvers;
 
 
-exec_schema_fail:
+exec_create_fail:
+exec_alter_fail:
 sql_alter_malloc_fail:
     free_sql_alter_queries(sql_alter_queries, sql_alter_queries_num);
     free(sql_create);
 sql_create_fail:
-json_parse_fail:
+exec_create_schema_fail:
+    free(sql_create_schema);
+sql_create_schema_fail:
     cJSON_Delete(json);
+json_parse_fail:
     free_config(configEntries, numEntries);
     close_connection(&conn, &res);
 create_connection_fail:
