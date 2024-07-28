@@ -1,3 +1,4 @@
+#include "config/config.h"
 #include "io_uring/event_handling.h"
 #include "http/input_parsing.h"
 #include "schema/schema_converting.h"
@@ -40,6 +41,8 @@ void shutdown_graphql_proxy_server();
 void sigterm_handler(int sig);
 void sigquit_handler(int sig);
 
+ConfigEntry *config;
+size_t num_entries;
 hashmap *resolvers;
 int listen_socket = 0;
 const char *json_schema = NULL;
@@ -75,7 +78,11 @@ void shutdown_graphql_proxy_server() {
     if (json_schema) free((char *) json_schema);
     json_schema = NULL;
 
+    // close clients sockets and connections to database
     close_conns();
+    
+    // free config entries
+    if (config) free_config(config, num_entries);
 
     proc_exit(0);
 }
@@ -120,6 +127,13 @@ graphql_proxy_main(Datum main_arg) {
     json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
     if (!json_schema) {
         ereport(ERROR, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
+        shutdown_graphql_proxy_server();
+    }
+
+    // load config
+    config = load_config_file("../contrib/graphql_proxy/proxy.conf", &num_entries);
+    if (config == NULL) {
+        ereport(ERROR, errmsg("graphql_proxy_main(): config loading failed\n"));
         shutdown_graphql_proxy_server();
     }
 

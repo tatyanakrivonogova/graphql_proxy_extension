@@ -9,7 +9,7 @@ OBJS = \
   io_uring/event_handling.o \
   io_uring/multiple_user_access.o  \
   postgres_connect/postgres_connect.o \
-  json_graphql/config/config.o \
+  config/config.o \
   handlers/utils.o \
   handlers/handle_operation.o \
   response_creator/response_creator.o \
