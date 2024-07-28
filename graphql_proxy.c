@@ -32,7 +32,7 @@
 
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
-#define MAX_ENTRIES          (10)
+#define DEFAULT_MAX_ENTRIES          (10)
 
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
@@ -104,6 +104,8 @@ void sigquit_handler(int sig) {
 void
 graphql_proxy_main(Datum main_arg) {
     int port;
+    int backlog_size;
+    int max_entries;
 
     struct io_uring_params params;
     struct io_uring ring;
@@ -127,11 +129,12 @@ graphql_proxy_main(Datum main_arg) {
         shutdown_graphql_proxy_server();
     }
 
-
+    // get port value from config
     port = get_int_value(get_config_value("port", config, num_entries));
     if (port == 0) {
         port = DEFAULT_PORT;
     }
+    elog(LOG, "graphql_proxy_main(): port=%d\n", port);
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
         .sin_port = htons(port),
@@ -170,15 +173,26 @@ graphql_proxy_main(Datum main_arg) {
         shutdown_graphql_proxy_server();
     }
 
-    // to do: DEFAULT_BACKLOG_SIZE from config
-    if (listen(listen_socket, DEFAULT_BACKLOG_SIZE)) {
+    // get backlog size value from config
+    backlog_size = get_int_value(get_config_value("backlog_size", config, num_entries));
+    if (backlog_size == 0) {
+        backlog_size = DEFAULT_BACKLOG_SIZE;
+    }
+    elog(LOG, "graphql_proxy_main(): backlog_size=%d\n", backlog_size);
+    if (listen(listen_socket, backlog_size)) {
         char* errorbuf = strerror(errno);
         ereport(ERROR, errmsg("graphql_proxy_main(): listen() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
     memset(&params, 0, sizeof(params));
-    if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
+    // get max entries value from config
+    max_entries = get_int_value(get_config_value("max_entries", config, num_entries));
+    if (max_entries == 0) {
+        max_entries = DEFAULT_MAX_ENTRIES;
+    }
+    elog(LOG, "graphql_proxy_main(): max_entries=%d\n", max_entries);
+    if (io_uring_queue_init_params(max_entries, &ring, &params)) {
         char* errorbuf = strerror(errno);
         ereport(ERROR, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();

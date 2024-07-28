@@ -66,6 +66,7 @@ char* get_config_value(char *key, ConfigEntry *configEntries, size_t numEntries)
 }
 
 int get_int_value(char *value) {
+    if (value == NULL) return 0;
     return atoi(value);
 }
 
