@@ -1,0 +1,21 @@
+type Person {
+  id: Int!
+  name: String!
+}
+
+type Message {
+  id: Int!
+  msg: String!
+  sender: Person!
+  receivers: Person!
+}
+
+type Query {
+  getPerson(id: Int! = 9): Person
+  person(id: Int!): Person
+}
+
+type Mutation {
+  createPerson(id: Int! = 8, name: String!): Person
+  updatePerson(id: Int!, name: String!): Person
+}

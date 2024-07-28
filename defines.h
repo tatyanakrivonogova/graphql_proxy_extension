@@ -1,0 +1,2 @@
+
+#define QUERY_LENGTH 256

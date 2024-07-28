@@ -15,7 +15,7 @@
 
 int main(int argc, char **argv) {
   const char *error;
-  FILE* file = fopen("graphql.schema", "rb");
+  FILE* file = fopen("schema.graphql", "rb");
   if (!file) {
       fprintf(stderr, "Open file failed\n");
       return 1;

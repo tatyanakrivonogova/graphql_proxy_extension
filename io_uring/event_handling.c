@@ -10,7 +10,8 @@ struct conn_info conns[MAX_CONNECTIONS];
 
 void
 add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_t *client_len) {
-    
+    int index;
+    int res;
     conn_info *conn_i;
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_accept(sqe, fd, client_addr, client_len, 0);
@@ -20,8 +21,7 @@ add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr, socklen_
         abort();
     }
 
-    int index = 0;
-    int res; 
+    index = 0;
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {
@@ -40,14 +40,15 @@ void
 add_socket_read(struct io_uring *ring, int fd, size_t size) {
     struct io_uring_sqe *sqe;
     conn_info *conn_i;
+    int index;
+    int res;
 
     elog(LOG, "Start socket_read");
     sqe = io_uring_get_sqe(ring);
     io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
     elog(LOG, "Read buf from fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
 
-    int index = 0;
-    int res;
+    index = 0;
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {
@@ -66,6 +67,8 @@ void
 add_socket_write(struct io_uring *ring, int fd, size_t size) {
     conn_info *conn_i;
     struct io_uring_sqe *sqe;
+    int index;
+    int res; 
 
     elog(LOG, "Start socket_write");
     elog(LOG, "Write buf into fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
@@ -73,8 +76,7 @@ add_socket_write(struct io_uring *ring, int fd, size_t size) {
     elog(LOG, "Get uring sqe done");
     io_uring_prep_send(sqe, fd, &bufs[fd], size, 0);
 
-    int index = 0;
-    int res; 
+    index = 0;
     res = get_conn_index(fd, &index);
     elog(LOG, "get_conn_index finish with status: %d, index: %d", res, index);
     if (!res) {

@@ -1,8 +1,8 @@
 #include <liburing.h>
 #include "postgresql/libpq-fe.h"
 
-#define MAX_CONNECTIONS      (10)
-#define MAX_MESSAGE_LEN      (512)
+#define MAX_CONNECTIONS      (20)
+#define MAX_MESSAGE_LEN      (10000)
 
 
 typedef struct conn_info {

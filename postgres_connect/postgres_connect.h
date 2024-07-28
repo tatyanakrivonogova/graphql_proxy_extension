@@ -11,3 +11,6 @@ close_connection(PGconn** pg_conn, PGresult **pg_res);
 
 int
 exec_query(PGconn** pg_conn, char *query, PGresult** res);
+
+void 
+handle_query(PGresult* res);
