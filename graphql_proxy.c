@@ -84,6 +84,7 @@ void shutdown_graphql_proxy_server() {
     // free config entries
     if (config) free_config(config, num_entries);
 
+    elog(LOG, "graphql_proxy_main(): --------------shutdown proxy server-----------------\n");
     proc_exit(0);
 }
 
@@ -103,9 +104,11 @@ void sigquit_handler(int sig) {
 
 void
 graphql_proxy_main(Datum main_arg) {
-    int port;
-    int backlog_size;
-    int max_entries;
+    int port = 0;
+    int backlog_size = 0;
+    int max_entries = 0;
+    char *file_schema = NULL;
+    char *file_types_reflection = NULL;
 
     struct io_uring_params params;
     struct io_uring ring;
@@ -125,7 +128,7 @@ graphql_proxy_main(Datum main_arg) {
     // load config
     config = load_config_file("../contrib/graphql_proxy/proxy.conf", &num_entries);
     if (config == NULL) {
-        ereport(ERROR, errmsg("graphql_proxy_main(): config loading failed\n"));
+        ereport(LOG, errmsg("graphql_proxy_main(): config loading failed\n"));
         shutdown_graphql_proxy_server();
     }
 
@@ -141,15 +144,27 @@ graphql_proxy_main(Datum main_arg) {
         .sin_addr.s_addr = INADDR_ANY,
     };
 
+    // get file with schema
+    file_schema = get_config_value("schema", config, num_entries);
+    if (file_schema == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): File with schema is not specified\n"));
+        shutdown_graphql_proxy_server();
+    }
     // get json schema
-    json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
+    json_schema = schema_to_json(file_schema);
     if (!json_schema) {
-        ereport(ERROR, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
+        ereport(LOG, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
         shutdown_graphql_proxy_server();
     }
 
+    // get file with reflection graphql types to postgresql types
+    file_types_reflection = get_config_value("types_reflection", config, num_entries);
+    if (file_types_reflection == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): File with types reflection is not specified\n"));
+        shutdown_graphql_proxy_server();
+    }
     // converting GraphQL schema to PostgresQL schema
-    resolvers = schema_convert(json_schema);
+    resolvers = schema_convert(json_schema, file_types_reflection);
     free((char *)json_schema);
     json_schema = NULL;
 
@@ -157,19 +172,19 @@ graphql_proxy_main(Datum main_arg) {
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("graphql_proxy_main(): socket() error\nError: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): socket() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
     if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("graphql_proxy_main(): setsockopt() error\nError: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): setsockopt() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
     if (bind(listen_socket, (struct sockaddr *)&sockaddr, sizeof(sockaddr))) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("graphql_proxy_main(): bind() error\nError: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): bind() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
@@ -181,7 +196,7 @@ graphql_proxy_main(Datum main_arg) {
     elog(LOG, "graphql_proxy_main(): backlog_size=%d\n", backlog_size);
     if (listen(listen_socket, backlog_size)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("graphql_proxy_main(): listen() error\nError: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): listen() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
@@ -194,12 +209,12 @@ graphql_proxy_main(Datum main_arg) {
     elog(LOG, "graphql_proxy_main(): max_entries=%d\n", max_entries);
     if (io_uring_queue_init_params(max_entries, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));
         shutdown_graphql_proxy_server();
     }
 
     if (!(params.features & IORING_FEAT_FAST_POLL)) {
-        ereport(ERROR, errmsg("graphql_proxy_main(): IORING_FEAT_FAST_POLL is not available in the kernel\n"));
+        ereport(LOG, errmsg("graphql_proxy_main(): IORING_FEAT_FAST_POLL is not available in the kernel\n"));
         shutdown_graphql_proxy_server();
     }
     
@@ -217,7 +232,7 @@ graphql_proxy_main(Datum main_arg) {
         // wait for cqes
         if (io_uring_wait_cqe(&ring, &cqe) != 0) {
             char* errorbuf = strerror(errno);
-            ereport(ERROR, errmsg("graphql_proxy_main(): io_uring_wait_cqe() error\nError: %s\n", errorbuf));
+            ereport(LOG, errmsg("graphql_proxy_main(): io_uring_wait_cqe() error\nError: %s\n", errorbuf));
             shutdown_graphql_proxy_server();
         }
 

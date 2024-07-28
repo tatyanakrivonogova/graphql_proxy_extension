@@ -60,11 +60,10 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
     }
 }
 
-hashmap *schema_convert(const char *json_schema) {
+hashmap *schema_convert(const char *json_schema, const char* file_types_reflection) {
     char *sql_create;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
     size_t sql_alter_queries_num;
-    const char* filename;
     size_t numEntries;
     ConfigEntry* configEntries;
     cJSON *json;
@@ -83,8 +82,7 @@ hashmap *schema_convert(const char *json_schema) {
         goto create_connection_fail;
     }
 
-    filename = "../contrib/graphql_proxy/schema/config.txt";
-    configEntries = load_config_file(filename, &numEntries);
+    configEntries = load_config_file(file_types_reflection, &numEntries);
     if (configEntries == NULL) {
         goto load_config_file_fail;
     }
