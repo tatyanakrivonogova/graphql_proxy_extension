@@ -103,16 +103,13 @@ void sigquit_handler(int sig) {
 
 void
 graphql_proxy_main(Datum main_arg) {
+    int port;
+
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
     const int val = 1;
 
-    struct sockaddr_in sockaddr = {
-        .sin_family = AF_INET,
-        .sin_port = htons(DEFAULT_PORT),
-        .sin_addr.s_addr = INADDR_ANY,
-    };
     struct sockaddr_in client_addr;
     socklen_t client_len;
 
@@ -123,17 +120,28 @@ graphql_proxy_main(Datum main_arg) {
 
     client_len = sizeof(client_addr);
 
-    // get json schema
-    json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
-    if (!json_schema) {
-        ereport(ERROR, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
-        shutdown_graphql_proxy_server();
-    }
-
     // load config
     config = load_config_file("../contrib/graphql_proxy/proxy.conf", &num_entries);
     if (config == NULL) {
         ereport(ERROR, errmsg("graphql_proxy_main(): config loading failed\n"));
+        shutdown_graphql_proxy_server();
+    }
+
+
+    port = get_int_value(get_config_value("port", config, num_entries));
+    if (port == 0) {
+        port = DEFAULT_PORT;
+    }
+    struct sockaddr_in sockaddr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(port),
+        .sin_addr.s_addr = INADDR_ANY,
+    };
+
+    // get json schema
+    json_schema = schema_to_json("../contrib/graphql_proxy/libgraphqlparser/schema.graphql");
+    if (!json_schema) {
+        ereport(ERROR, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
         shutdown_graphql_proxy_server();
     }
 

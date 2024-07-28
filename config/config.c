@@ -65,6 +65,10 @@ char* get_config_value(char *key, ConfigEntry *configEntries, size_t numEntries)
     return NULL;
 }
 
+int get_int_value(char *value) {
+    return atoi(value);
+}
+
 void free_config(ConfigEntry *configEntries, size_t numEntries) {
     if (configEntries) {
         for (size_t i = 0; i < numEntries; i++) {
