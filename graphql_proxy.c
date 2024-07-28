@@ -88,9 +88,10 @@ void sigterm_handler(int sig) {
 }
 
 void sigquit_handler(int sig) {
-    elog(LOG, "graphql_proxy_main(): ----------Received SIGQUIT signal----------------");
-    //check signal
-    shutdown_graphql_proxy_server();
+    if (sig == SIGQUIT) {
+        elog(LOG, "graphql_proxy_main(): ----------Received SIGQUIT signal----------------");
+        shutdown_graphql_proxy_server();
+    }
 }
 
 void

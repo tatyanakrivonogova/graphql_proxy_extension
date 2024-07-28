@@ -93,6 +93,8 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
 char *handle_query(PGresult** res) {
     int rows;
     int cols;
+    char jsonResponse[RESPONSE_LENGTH];
+    
     char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
     if (httpResponse == NULL) {
         elog(LOG, "httpResponse malloc failed\n");
@@ -106,7 +108,6 @@ char *handle_query(PGresult** res) {
     elog(LOG, "Number of columns: %d\n", cols);
 
     // Create JSON response string
-    char jsonResponse[RESPONSE_LENGTH];
     snprintf(jsonResponse, RESPONSE_LENGTH, "{ \"data\": { ");
 
     // Add column name to response
@@ -123,10 +124,10 @@ char *handle_query(PGresult** res) {
 
     // Form HTTP response
     if (*res == NULL) {
-        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
     } else {
         elog(LOG, "Received NULL PGresult.");
-        snprintf(httpResponse, RESPONSE_LENGTH, "HTTP/1.1 200 OK\nContent-Type: application/json\n\n%s", jsonResponse);
+        snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
     }
     
     elog(LOG, "HTTP Response: %s", httpResponse);

@@ -12,6 +12,7 @@ OBJS = \
   json_graphql/config/config.o \
   handlers/utils.o \
   handlers/handle_operation.o \
+  response_creator/response_creator.o \
   schema/schema.o \
   schema/schema_converting.o \
   schema/operation_converting.o \
