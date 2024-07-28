@@ -85,8 +85,9 @@ hashmap *schema_convert(const char *json_schema) {
 
     filename = "../contrib/graphql_proxy/schema/config.txt";
     configEntries = load_config_file(filename, &numEntries);
-    if (configEntries == NULL)
+    if (configEntries == NULL) {
         goto load_config_file_fail;
+    }
 
 	// parse the JSON data
 	json = cJSON_Parse(json_schema);
@@ -118,6 +119,7 @@ hashmap *schema_convert(const char *json_schema) {
         cJSON *type_name;
         cJSON *type_name_value;
         cJSON *fields;
+        int status;
         
         definition = cJSON_GetArrayItem(definitions, i);
         definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
@@ -280,15 +282,17 @@ hashmap *schema_convert(const char *json_schema) {
         elog(LOG, "sql_create query: %s\n", sql_create);
 
         // execute create table query
-        exec_query(&conn, sql_create, &res);
-        // handle_query(&res);
-        //
+        status = exec_query(&conn, sql_create, &res);
+        if (status == 0) {
+            goto exec_schema_fail;
+        }
         clearRes(&res);        
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
-            exec_query(&conn, sql_alter_queries[i], &res);
-            // handle_query(&res);
-            //
+            status = exec_query(&conn, sql_alter_queries[i], &res);
+            if (status == 0) {
+                goto exec_schema_fail;
+            }
             clearRes(&res);
         }
 
@@ -304,6 +308,7 @@ hashmap *schema_convert(const char *json_schema) {
     return resolvers;
 
 
+exec_schema_fail:
 sql_alter_malloc_fail:
     free_sql_alter_queries(sql_alter_queries, sql_alter_queries_num);
     free(sql_create);
