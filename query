@@ -26,8 +26,7 @@ Content-Length: 0
 SELECT graphql.run($$
   book {
     id,
-    title,
-    author_id
+    title
   }
 $$);
 
@@ -39,6 +38,8 @@ Content-Length: 0
 SELECT graphql.run($$
   book {
     id,
+    public_year,
+    title,
     author {
       id,
       name
@@ -46,4 +47,105 @@ SELECT graphql.run($$
   }
 $$);
 
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  author {
+    name,
+    book {
+      title,
+      id,
+      public_year
+    }
+  }
+$$);
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  author {
+    name,
+    id
+  }
+  book {
+    title,
+    id,
+    public_year
+  }
+$$);
+
+SELECT graphql.to_sql('book', '', '{title, id, public_year}', 'book');
+SELECT graphql.to_sql(book, '', '{title, id, public_year}', author, NULL);
+
+---------------------------------------------------------------------------------
+
+PREDICATE means id
+following query shows out book with id = 1
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book("1") {
+    id,
+    public_year,
+    title
+  }
+$$);
+
+alter table book add constraint fk_book_author foreign key (author_id) references author(id);
+alter table author add constraint fk_author_book foreign key (id) references book(author_id);
 alter table book add constarint fk_book_author foreign key (author) references author(id);
+
+============================================================
+
+PSQL
+
+work:
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.author_id 
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1".title from author where "sub/1".author_id = author.id 
+    ) 
+as "sub/2";
+
+-------------------------------------------------------------------------
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1" from author where book.author_id = author.id 
+    ) 
+as "sub/2";
+
+select json_agg("sub/1") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year, book.author_id
+    ) AS "sub/1";
+
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1" from author where book.author_id = author.id 
+    ) as "sub/2",
+    LATERAL (
+      select * from book;
+    );
+
+
+
