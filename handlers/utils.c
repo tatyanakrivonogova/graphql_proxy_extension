@@ -66,7 +66,7 @@ char *find_arg_value(ArgValues *argValues, char *argName, char *argType) {
         if (argValues->argValues[i] != NULL 
                 && (strcmp(argValues->argValues[i]->argName, argName) == 0)) {
             if (is_same(argType, argValues->argValues[i]->argType) != 0) {
-                elog(LOG, "fiand_arg_value(): Wrong type of argument %s\n", argName);
+                elog(LOG, "find_arg_value(): Wrong type of argument %s\n", argName);
                 return NULL;
             }
             if (argValues->argValues[i]->isNull) {

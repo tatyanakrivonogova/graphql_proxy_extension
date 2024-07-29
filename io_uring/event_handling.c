@@ -45,6 +45,7 @@ add_socket_read(struct io_uring *ring, int fd, size_t size) {
     int res;
 
     elog(LOG, "add_socket_read(): Start socket_read");
+    memset(&bufs[fd], 0, size);
     sqe = io_uring_get_sqe(ring);
     io_uring_prep_recv(sqe, fd, &bufs[fd], size, 0);
     elog(LOG, "add_socket_read(): Read buf from fd = %d: %s, size: %ld", fd, (char*)&bufs[fd], size);
