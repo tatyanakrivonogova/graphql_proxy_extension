@@ -185,9 +185,12 @@ graphql_proxy_main(Datum main_arg) {
         ereport(LOG, errmsg("graphql_proxy_main(): File with resolvers is not specified\n"));
         shutdown_graphql_proxy_server();
     }
-    elog(LOG, "graphql_proxy_main(): resolvers_filename: %s\n", resolvers_filename);
     // converting GraphQL schema to PostgresQL schema
     resolvers = schema_convert(json_schema, file_types_reflection, db_name, db_host, db_port, resolvers_filename);
+    if (!resolvers) {
+        ereport(LOG, errmsg("graphql_proxy_main(): Schema converting failed\n"));
+        shutdown_graphql_proxy_server();
+    }
     free((char *)json_schema);
     json_schema = NULL;
 

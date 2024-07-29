@@ -17,11 +17,6 @@ bool is_type_exists(char* type_name) {
     return false;
 }
 
-void free_sql_alter_queries(char **sql_alter_queries, size_t num) {
-    for (size_t i = 0; i < num; ++i)
-        if (sql_alter_queries[i] != NULL) free(sql_alter_queries[i]);
-}
-
 
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
     // drop old constraint
@@ -54,10 +49,12 @@ void create_foreign_key(char* sql_alter, char* table_name, char* another_table_n
     strcat(sql_alter, ");");
 }
 
-void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) {
-    for (size_t i = 0; i < sql_alter_queries_num; ++i) {
-        free(sql_alter_queries[i]);
+void free_alter_queries(char** sql_alter_queries, size_t *sql_alter_queries_num) {
+    for (size_t i = 0; i < *sql_alter_queries_num; ++i) {
+        if (sql_alter_queries[i] != NULL) free(sql_alter_queries[i]);
+        sql_alter_queries[i] = NULL;
     }
+    *sql_alter_queries_num = 0;
 }
 
 hashmap *schema_convert(const char *json_schema, const char* file_types_reflection, 
@@ -247,31 +244,31 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
             {
                 // ListType
                 cJSON *field_type_type_type;
-                cJSON *field_type_type_type_type;
-                cJSON *field_type_type_type_type_kind;
+                // cJSON *field_type_type_type_type;
+                cJSON *field_type_type_type_kind;
 
                 field_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type, "type");
-                field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type");
-                field_type_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "kind");
-                if (field_type_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_type_kind)) 
-                    && (strcmp(field_type_type_type_type_kind->valuestring, "NamedType") == 0))
+                // field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type");
+                field_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "kind");
+                if (field_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_kind)) 
+                    && (strcmp(field_type_type_type_kind->valuestring, "NamedType") == 0))
                 {
                     // List of NamedType
-                    cJSON *field_type_type_type_type_name;
-                    cJSON *field_type_type_type_type_name_value;
+                    cJSON *field_type_type_type_name;
+                    cJSON *field_type_type_type_name_value;
 
-                    field_type_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type, "name");
-                    field_type_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_type_name, "value");
+                    field_type_type_type_name = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "name");
+                    field_type_type_type_name_value = cJSON_GetObjectItemCaseSensitive(field_type_type_type_name, "value");
 
                     // found type of field
-                    if (field_type_type_type_type_name_value != NULL && (cJSON_IsString(field_type_type_type_type_name_value)) 
-                        && (field_type_type_type_type_name_value->valuestring != NULL)) {
+                    if (field_type_type_type_name_value != NULL && (cJSON_IsString(field_type_type_type_name_value)) 
+                        && (field_type_type_type_name_value->valuestring != NULL)) {
                         char *convertedType;
                         
-                        elog(LOG, "schema_convert(): \t\tfield_type[%d]: List of %s\n", j, field_type_type_type_type_name_value->valuestring);
-                        convertedType = get_config_value(field_type_type_type_type_name_value->valuestring, configEntries, numEntries);
+                        elog(LOG, "schema_convert(): \t\tfield_type[%d]: List of %s\n", j, field_type_type_type_name_value->valuestring);
+                        convertedType = get_config_value(field_type_type_type_name_value->valuestring, configEntries, numEntries);
                         if (convertedType == NULL) {
-                            elog(LOG, "schema_convert(): Type is not found: %s\n", field_type_type_type_type_name_value->valuestring);
+                            elog(LOG, "schema_convert(): Type is not found: %s\n", field_type_type_type_name_value->valuestring);
                         } else {
                             strcat(sql_create, convertedType);
                             strcat(sql_create, " ARRAY ");
@@ -279,9 +276,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                     }
                 } else {
                     elog(LOG, "schema_convert(): Nested lists is not supported\n");
-                    //free resources
-                    //
-                    return NULL;
+                    goto nested_lists_fail;
                 }
             }
             
@@ -313,7 +308,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         }
 
         memset(sql_create, 0, QUERY_LENGTH);
-        free_alter_queries(sql_alter_queries, sql_alter_queries_num);
+        free_alter_queries(sql_alter_queries, &sql_alter_queries_num);
     }
 
 
@@ -327,7 +322,8 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 exec_create_fail:
 exec_alter_fail:
 sql_alter_malloc_fail:
-    free_sql_alter_queries(sql_alter_queries, sql_alter_queries_num);
+nested_lists_fail:
+    free_alter_queries(sql_alter_queries, &sql_alter_queries_num);
     free(sql_create);
 sql_create_fail:
 exec_create_schema_fail:

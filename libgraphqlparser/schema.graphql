@@ -10,6 +10,10 @@ type Message {
   receivers: Person!
 }
 
+type Stat {
+  stat: [Int]!
+}
+
 type Query {
   getPerson(id: Int! = 9): Person
   person(id: Int!): Person

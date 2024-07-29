@@ -67,10 +67,10 @@ char *find_arg_value(ArgValues *argValues, char *argName, char *argType) {
                 && (strcmp(argValues->argValues[i]->argName, argName) == 0)
                 && (is_same(argType, argValues->argValues[i]->argType) == 0)) {
             if (argValues->argValues[i]->isNull) {
-                elog(LOG, "is null\n");
+                elog(LOG, "find_arg_value(): is null\n");
                 return NULL;
             } else {
-                elog(LOG, "found: %s\n", argValues->argValues[i]->value);
+                elog(LOG, "find_arg_value(): found: %s\n", argValues->argValues[i]->value);
                 return argValues->argValues[i]->value;
             }
         }
@@ -84,6 +84,6 @@ void set_value(char *format_query, char *query, char *value, char *type) {
     } else if ((strcmp(type, "TEXT") == 0) || (strcmp(type, "BOOLEAN"))) {
         insert_string(query, QUERY_LENGTH, format_query, value);
     } else {
-        elog(LOG, "Unknown type: %s\n", type);
+        elog(LOG, "set_value(): Unknown type %s\n", type);
     }
 }
