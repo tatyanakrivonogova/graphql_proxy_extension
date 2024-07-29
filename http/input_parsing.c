@@ -110,8 +110,8 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         strncpy(bufs[fd], response, response_len);
         *outputSize = response_len;
 
-        char* toSqlResult = to_sql(response);
-        elog(LOG, 'toSqlResult: %s', toSqlResult);
+        // char* toSqlResult = to_sql(response);
+        // elog(LOG, 'toSqlResult: %s', toSqlResult);
     }
     elog(LOG, "buffer after query pars: %.*s\n", (int)query_len, query);
 

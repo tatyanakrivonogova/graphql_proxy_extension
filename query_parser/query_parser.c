@@ -4,7 +4,7 @@
 Datum
 my_run(PG_FUNCTION_ARGS)
 {
-	char *input = text_to_cstring(PG_GETARG_TEXT_PP(0));
+	// char *input = text_to_cstring(PG_GETARG_TEXT_PP(0));
 }
 
 char* to_sql(char *expr)
