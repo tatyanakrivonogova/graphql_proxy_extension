@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "config/config.h"
 #include "io_uring/event_handling.h"
 #include "http/input_parsing.h"
@@ -29,13 +30,6 @@
 #include <unistd.h>
 #include <netinet/in.h>
 
-
-#define DEFAULT_PROXY_PORT            (7879)
-#define DEFAULT_BACKLOG_SIZE    (512)
-#define DEFAULT_MAX_ENTRIES     (10)
-#define DEFAULT_DB_NAME         ("postgres")
-#define DEFAULT_DB_HOST         ("localhost")
-#define DEFAULT_DB_PORT         (5432)
 
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);

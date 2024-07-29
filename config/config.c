@@ -9,7 +9,7 @@ ConfigEntry* load_config_file(const char* filename, size_t* numEntries) {
 
     FILE* file = fopen(filename, "r");
     if (!file) {
-        elog(LOG, "Open file failed\n");
+        elog(LOG, "load_config_file(): Open file failed %s\n", filename);
         return NULL;
     }
 
@@ -21,9 +21,9 @@ ConfigEntry* load_config_file(const char* filename, size_t* numEntries) {
     }
     rewind(file);
 
-    entries = (ConfigEntry*)malloc((*numEntries) * sizeof(ConfigEntry));
+    entries = (ConfigEntry *)malloc((*numEntries) * sizeof(ConfigEntry));
     if (!entries) {
-        elog(LOG, "Malloc failed\n");
+        elog(LOG, "load_config_file(): Malloc failed\n");
         fclose(file);
         return NULL;
     }
@@ -31,7 +31,7 @@ ConfigEntry* load_config_file(const char* filename, size_t* numEntries) {
     for (size_t i = 0; i < *numEntries; i++) {
         char* separator;
         if (!fgets(line, sizeof(line), file)) {
-            elog(LOG, "File read failed\n");
+            elog(LOG, "load_config_file(): File read failed\n");
             free(entries);
             fclose(file);
             return NULL;
@@ -41,7 +41,7 @@ ConfigEntry* load_config_file(const char* filename, size_t* numEntries) {
 
         separator = strchr(line, '=');
         if (!separator) {
-            elog(LOG, "Invalid config parameter: %s\n", line);
+            elog(LOG, "load_config_file(): Invalid config parameter: %s\n", line);
             free(entries);
             fclose(file);
             return NULL;
