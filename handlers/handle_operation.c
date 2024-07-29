@@ -1,10 +1,10 @@
-#include "../hashmap/map.h"
+#include "handle_operation.h"
+
 #include "../json_graphql/cJSON.h"
 #include "../io_uring/event_handling.h"
 #include "../postgres_connect/postgres_connect.h"
 #include "../io_uring/multiple_user_access.h"
 #include "../schema/schema.h"
-#include "utils.h"
 #include "defines.h"
 
 #include "postgres.h"
@@ -26,14 +26,14 @@ char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues
     
     // get sql-code
     if (hashmap_get(resolvers, operation_name, strlen(operation_name), &res)) {
-        elog(LOG, "sql format_query for %s:\n\t\t%s\n", operation_name, ((Operation *)res)->operationSql);
+        elog(LOG, "set_arguments_to_query(): sql format_query for %s:\n\t\t%s\n", operation_name, ((Operation *)res)->operationSql);
         // copy original format_query
         format_query = (char *)malloc(QUERY_LENGTH);
         strcpy(format_query, ((Operation *)res)->operationSql);
         // query for setting argument's values
         query = (char *)malloc(QUERY_LENGTH);
     } else {
-        elog(LOG, "sql format_query for %s not found.\n", operation_name);
+        elog(LOG, "set_arguments_to_query(): sql format_query for %s not found.\n", operation_name);
         return NULL;
     }
 
@@ -46,19 +46,19 @@ char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues
         if (currentArgValue == NULL) {
             if (strlen(currentArg->defaultValue) != 0) {
                 // set default value
-                elog(LOG, "set default value\n");
+                elog(LOG, "set_arguments_to_query(): set default value\n");
                 set_value(format_query, query, currentArg->defaultValue, currentArg->argType);
             } else if (currentArg->nonNullType) {
-                elog(LOG, "NULL value in non-null argument\n");
+                elog(LOG, "set_arguments_to_query(): NULL value in non-null argument\n");
                 goto set_arguments_to_query_fail;
             } else {
                 // set NULL value
-                elog(LOG, "set NULL value\n");
+                elog(LOG, "set_arguments_to_query(): set NULL value\n");
                 set_value(format_query, query, "NULL", currentArg->argType);
             }
         } else {
             // set specified value
-            elog(LOG, "set specified value\n");
+            elog(LOG, "set_arguments_to_query(): set specified value\n");
             set_value(format_query, query, currentArgValue, currentArg->argType);
         }
         swap(&format_query, &query);
@@ -72,7 +72,7 @@ set_arguments_to_query_fail:
     return NULL;
 }
 
-char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
+char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
     cJSON *json;
     cJSON *definitions;
     char *query_for_execution;
@@ -81,7 +81,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
     if (json == NULL) {
 		const char *error_ptr = cJSON_GetErrorPtr();
 		if (error_ptr != NULL) {
-			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_query);
+			elog(LOG, "handle_operation(): Parsing json failed\nError: %s %ld\n", error_ptr, error_ptr - json_query);
 		}
 		cJSON_Delete(json);
 		return NULL;
@@ -89,9 +89,8 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
 
     // access the JSON data
 	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
-    elog(LOG, "definitions: %p\n", definitions);
     if (cJSON_GetArraySize(definitions) != 1) {
-        elog(LOG, "Request should consist one operation\n");
+        elog(LOG, "handle_operation(): Request should consist one operation\n");
         return NULL;
     }
 
@@ -107,14 +106,14 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
         definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
         if (definition_kind != NULL && (cJSON_IsString(definition_kind)) && (definition_kind->valuestring != NULL)
                 && (strcmp(definition_kind->valuestring, "OperationDefinition") != 0)) {
-            elog(LOG, "Wrong query type\n");
+            elog(LOG, "handle_operation(): Wrong query kind\n");
             continue;
         }
 
         definition_operation = cJSON_GetObjectItemCaseSensitive(definition, "operation");
         if (definition_operation != NULL && (cJSON_IsString(definition_operation)) && (definition_operation->valuestring != NULL)
                 && (strcmp(definition_operation->valuestring, "mutation") != 0) && (strcmp(definition_operation->valuestring, "query") != 0)) {
-            elog(LOG, "Operation query or mutation expected\n");
+            elog(LOG, "handle_operation(): Operation query or mutation expected\n");
             continue;
         }
 
@@ -134,7 +133,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
             selection_name_value = cJSON_GetObjectItemCaseSensitive(selection_name, "value");
             if (selection_name_value != NULL && (cJSON_IsString(selection_name_value)) 
                     && (selection_name_value->valuestring != NULL))
-                elog(LOG, "operation %s is called\n", selection_name_value->valuestring);
+                elog(LOG, "handle_operation(): operation %s is called\n", selection_name_value->valuestring);
 
             selection_arguments = cJSON_GetObjectItemCaseSensitive(selection, "arguments");
             argValues.argNumber = cJSON_GetArraySize(selection_arguments);
@@ -149,7 +148,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
 
                 ArgValue *currentArgValue = (ArgValue *)malloc(sizeof(ArgValue));
                 if (currentArgValue == NULL) {
-                    elog(LOG, "Argument value malloc failed\n");
+                    elog(LOG, "handle_operation(): Argument value malloc failed\n");
                     free_arg_values(&argValues);
                     goto handle_operation_fail;
                 }
@@ -160,7 +159,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 argument_name_value = cJSON_GetObjectItemCaseSensitive(argument_name, "value");
                 if (argument_name_value != NULL && (cJSON_IsString(argument_name_value)) 
                         && (argument_name_value->valuestring != NULL)) {
-                    elog(LOG, "argument[%d] name: %s\n", k, argument_name_value->valuestring);
+                    elog(LOG, "handle_operation(): argument[%d] name: %s\n", k, argument_name_value->valuestring);
                     strcpy(currentArgValue->argName, argument_name_value->valuestring);
                 }
 
@@ -169,13 +168,13 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 argument_value_kind = cJSON_GetObjectItemCaseSensitive(argument_value, "kind");
                 if (argument_value_kind != NULL && (cJSON_IsString(argument_value_kind)) 
                     && (argument_value_kind->valuestring != NULL)) {
-                    elog(LOG, "argument[%d] kind: %s\n", k, argument_value_kind->valuestring);
+                    elog(LOG, "handle_operation(): argument[%d] kind: %s\n", k, argument_value_kind->valuestring);
                     strcpy(currentArgValue->argType, argument_value_kind->valuestring);
 
                     // parse argument value
                     argument_value_value = cJSON_GetObjectItemCaseSensitive(argument_value, "value");
                     if (argument_value_value == NULL) {
-                        elog(LOG, "Value of argument is not defined\n");
+                        elog(LOG, "handle_operation(): Value of argument is not defined\n");
                         currentArgValue->isNull = true;
                         continue;
                     }
@@ -188,31 +187,32 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
             }
 
             if ((query_for_execution = set_arguments_to_query(resolvers, selection_name_value->valuestring, &argValues)) == NULL) {
-                elog(LOG, "Set arguments to query failed\n");
+                elog(LOG, "handle_operation(): Set arguments to query failed\n");
                 goto handle_operation_fail;
             } else {
                 int index;
-                char *response;
-                elog(LOG, "Set arguments to query successfully\n");
-                elog(LOG, "Query for execution: %s\n", query_for_execution);
+                char *response = NULL;
+                elog(LOG, "handle_operation(): Set arguments to query successfully\n");
+                elog(LOG, "handle_operation(): Query for execution: %s\n", query_for_execution);
 
                 // execute query
                 if (get_conn_index(fd, &index)) {
-                    elog(LOG, "execution...\n");
+                    elog(LOG, "handle_operation(): execution...\n");
                     if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
                         response = handle_query(&conns[index].pg_res);
                     } else {
-                        elog(ERROR, "Query execution failed.");
+                        elog(LOG, "handle_operation(): Query execution failed.");
                     }
                 } else {
-                    elog(LOG, "get_conn_index fail\n");
+                    elog(LOG, "handle_operation(): get_conn_index fail\n");
                 }
                 return response;
             }
         }
         
 handle_operation_fail:
-        elog(LOG, "handle_operation_fail\n");
-        return NULL;
+        elog(LOG, "handle_operation(): handle_operation_fail\n");
     }
+
+    return NULL;
 }
