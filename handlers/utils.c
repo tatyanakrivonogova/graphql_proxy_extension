@@ -64,8 +64,11 @@ int is_same(char *pg_type, char *json_type) {
 char *find_arg_value(ArgValues *argValues, char *argName, char *argType) {
     for (size_t i = 0; i < argValues->argNumber; ++i) {
         if (argValues->argValues[i] != NULL 
-                && (strcmp(argValues->argValues[i]->argName, argName) == 0)
-                && (is_same(argType, argValues->argValues[i]->argType) == 0)) {
+                && (strcmp(argValues->argValues[i]->argName, argName) == 0)) {
+            if (is_same(argType, argValues->argValues[i]->argType) != 0) {
+                elog(LOG, "fiand_arg_value(): Wrong type of argument %s\n", argName);
+                return NULL;
+            }
             if (argValues->argValues[i]->isNull) {
                 elog(LOG, "find_arg_value(): is null\n");
                 return NULL;

@@ -42,7 +42,7 @@ void check(int sd, const char *request, const char *expectedResponse) {
     buffer[res] = '\0';
     
     printf("buffer: %s \nexpected: %s\n", buffer, expectedResponse);
-    printf("buffer: %ld \nexpected: %ld\n", strlen(buffer), strlen(expectedResponse));
+    // printf("buffer: %ld \nexpected: %ld\n", strlen(buffer), strlen(expectedResponse));
     int pos;
     if ((pos = strcmp(buffer, expectedResponse)) == 0) {
         printf("\t\tTest %ld: OK\n", test_number++);
@@ -111,8 +111,16 @@ int main(int argc, char* argv[]) {
     //           "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}] } }");
 
     // Simple mutation
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123, name: \"Tom\") {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
+
+    // Simple mutation with default id value
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\")\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
+
+    // Unspecified value for non-null argument
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123) {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n");
 
     // Two mutations in one operation
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}",
