@@ -66,6 +66,9 @@ SET LOCAL search_path TO graphql;     -- Ensure defs are created in this schema
   * down.
   */
 
+CREATE or REPLACE FUNCTION my_run(expr TEXT) returns json
+AS 'MODULE_PATHNAME', 'my_run' LANGUAGE C;
+
 CREATE VIEW pk AS
 SELECT attrelid::regclass AS tab,
        array_agg(attname)::name[] AS cols

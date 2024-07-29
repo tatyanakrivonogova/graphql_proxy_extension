@@ -10,9 +10,9 @@ OBJS = \
   io_uring/multiple_user_access.o  \
   postgres_connect/postgres_connect.o \
   json_graphql/config/config.o \
+  schema/schema.o \
   handlers/utils.o \
   handlers/handle_operation.o \
-  schema/schema.o \
   schema/schema_converting.o \
   schema/operation_converting.o \
   json_graphql/cJSON.o \

@@ -9,6 +9,7 @@
 #include "../libgraphqlparser/c/GraphQLAstNode.h"
 #include "../libgraphqlparser/c/GraphQLParser.h"
 #include "../libgraphqlparser/c/GraphQLAstToJSON.h"
+#include "../query_parser/query_parser.h"
 
 #include "postgres.h"
 
@@ -108,6 +109,9 @@ parse_input(char* request, size_t request_len, int* outputSize, int fd, hashmap 
         elog(LOG, "response_len: %ld response: %s\n", response_len, response);
         strncpy(bufs[fd], response, response_len);
         *outputSize = response_len;
+
+        char* toSqlResult = to_sql(response);
+        elog(LOG, 'toSqlResult: %s', toSqlResult);
     }
     elog(LOG, "buffer after query pars: %.*s\n", (int)query_len, query);
 

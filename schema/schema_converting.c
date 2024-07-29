@@ -9,6 +9,7 @@
 #include "operation_converting.h"
 #include "defines.h"
 
+// Types types;
 
 bool is_type_exists(char* type_name) {
     for (size_t i = 0; i < types.numCreatedTypes; ++i) {

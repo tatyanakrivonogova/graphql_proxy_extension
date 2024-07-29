@@ -28,11 +28,11 @@ typedef struct {
 
 
 // types which are already converted to PostgresQL
-typedef struct {
+typedef struct Types{
     size_t numCreatedTypes;
     char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
 } Types;
-Types types;
+extern struct Types types;
 
 
 // mutation with sql-function and argument types
