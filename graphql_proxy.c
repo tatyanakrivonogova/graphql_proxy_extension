@@ -115,6 +115,7 @@ graphql_proxy_main(Datum main_arg) {
     char *db_name = NULL;
     char *db_host = NULL;
     int db_port = 0;
+    char *resolvers_filename = NULL;
 
     struct io_uring_params params;
     struct io_uring ring;
@@ -185,8 +186,14 @@ graphql_proxy_main(Datum main_arg) {
         ereport(LOG, errmsg("graphql_proxy_main(): Database port is not specified\n"));
         db_port = DEFAULT_DB_PORT;
     }
+    resolvers_filename = get_config_value("resolvers", config, num_entries);
+    if (resolvers_filename == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): File with resolvers is not specified\n"));
+        shutdown_graphql_proxy_server();
+    }
+    elog(LOG, "graphql_proxy_main(): resolvers_filename: %s\n", resolvers_filename);
     // converting GraphQL schema to PostgresQL schema
-    resolvers = schema_convert(json_schema, file_types_reflection, db_name, db_host, db_port);
+    resolvers = schema_convert(json_schema, file_types_reflection, db_name, db_host, db_port, resolvers_filename);
     free((char *)json_schema);
     json_schema = NULL;
 

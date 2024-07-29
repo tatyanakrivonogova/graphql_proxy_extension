@@ -5,7 +5,8 @@
 #include "../schema/schema.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
 
-void operation_convert(cJSON *definition, hashmap *resolvers, ConfigEntry* configEntries, size_t numEntries) {
+void operation_convert(cJSON *definition, hashmap *resolvers, 
+        ConfigEntry* configEntries, size_t numEntries, char *resolvers_filaname) {
     cJSON *operation_fields = cJSON_GetObjectItemCaseSensitive(definition, "fields");
     for (int j = 0; j < cJSON_GetArraySize(operation_fields); ++j)
     {
@@ -135,7 +136,8 @@ void operation_convert(cJSON *definition, hashmap *resolvers, ConfigEntry* confi
             }            
 
             // get sql-code for operation
-            operation_body = load_function_body(operation_field_name_value->valuestring);
+            elog(LOG, "operation_convert(): load function body from %s\n", resolvers_filaname);
+            operation_body = load_function_body(operation_field_name_value->valuestring, resolvers_filaname);
             if (operation_body != NULL) {
                 elog(LOG, "operation body for %s:\n\t\t%s\n", operation_field_name_value->valuestring, operation_body);
                 operation->operationSql = operation_body;

@@ -61,7 +61,7 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
 }
 
 hashmap *schema_convert(const char *json_schema, const char* file_types_reflection, 
-        char *db_name, char *db_host, int db_port) {
+        char *db_name, char *db_host, int db_port, char *resolvers_filename) {
     char *sql_create;
     char *sql_create_schema;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
@@ -146,7 +146,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         if (definition_name_value != NULL && (cJSON_IsString(definition_name_value)) && (definition_name_value->valuestring != NULL)) {
             if (strcmp(definition_name_value->valuestring, "Mutation") == 0 || (strcmp(definition_name_value->valuestring, "Query") == 0)) {
                 // convert operation
-                operation_convert(definition, resolvers, configEntries, numEntries);
+                operation_convert(definition, resolvers, configEntries, numEntries, resolvers_filename);
                 continue;
             }
         }

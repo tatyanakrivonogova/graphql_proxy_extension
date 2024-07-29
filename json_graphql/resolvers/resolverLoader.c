@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-char* load_function_body(const char* function_name) {
+char* load_function_body(const char* function_name, char *resolvers_filename) {
     char line[MAX_FUNCTION_SIZE];
     char *function_body = NULL;
     size_t function_body_size = 0;
 
-    FILE *file = fopen("../contrib/graphql_proxy/json_graphql/resolvers/functions.sql", "r");
+    FILE *file = fopen(resolvers_filename, "r");
     if (file == NULL) {
-        elog(LOG, "Failed to open file");
+        elog(LOG, "Failed to open file %s\n", resolvers_filename);
         return NULL;
     }
 
