@@ -60,7 +60,8 @@ void free_alter_queries(char** sql_alter_queries, size_t sql_alter_queries_num) 
     }
 }
 
-hashmap *schema_convert(const char *json_schema, const char* file_types_reflection) {
+hashmap *schema_convert(const char *json_schema, const char* file_types_reflection, 
+        char *db_name, char *db_host, int db_port) {
     char *sql_create;
     char *sql_create_schema;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
@@ -69,7 +70,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     ConfigEntry* configEntries;
     cJSON *json;
     cJSON *definitions;
-    char *conn_info = "dbname=postgres host=localhost port=5432";
+    char conn_info[256];
     PGconn *conn;
     PGresult *res;
     int status;
@@ -80,6 +81,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 		goto hashmap_create_fail;
 	}
 
+    snprintf(conn_info, 256, "dbname=%s host=%s port=%d", db_name, db_host, db_port);
     if (!create_connection(&conn, conn_info)) {
         goto create_connection_fail;
     }

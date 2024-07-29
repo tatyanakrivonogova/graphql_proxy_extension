@@ -30,9 +30,12 @@
 #include <netinet/in.h>
 
 
-#define DEFAULT_PORT            (7879)
+#define DEFAULT_PROXY_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
-#define DEFAULT_MAX_ENTRIES          (10)
+#define DEFAULT_MAX_ENTRIES     (10)
+#define DEFAULT_DB_NAME         ("postgres")
+#define DEFAULT_DB_HOST         ("localhost")
+#define DEFAULT_DB_PORT         (5432)
 
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
@@ -109,6 +112,9 @@ graphql_proxy_main(Datum main_arg) {
     int max_entries = 0;
     char *file_schema = NULL;
     char *file_types_reflection = NULL;
+    char *db_name = NULL;
+    char *db_host = NULL;
+    int db_port = 0;
 
     struct io_uring_params params;
     struct io_uring ring;
@@ -135,7 +141,7 @@ graphql_proxy_main(Datum main_arg) {
     // get port value from config
     port = get_int_value(get_config_value("port", config, num_entries));
     if (port == 0) {
-        port = DEFAULT_PORT;
+        port = DEFAULT_PROXY_PORT;
     }
     elog(LOG, "graphql_proxy_main(): port=%d\n", port);
     struct sockaddr_in sockaddr = {
@@ -163,8 +169,24 @@ graphql_proxy_main(Datum main_arg) {
         ereport(LOG, errmsg("graphql_proxy_main(): File with types reflection is not specified\n"));
         shutdown_graphql_proxy_server();
     }
+    // get params for connecting to database
+    db_name = get_config_value("db_name", config, num_entries);
+    if (db_name == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): Database name is not specified\n"));
+        db_name = DEFAULT_DB_NAME;
+    }
+    db_host = get_config_value("db_host", config, num_entries);
+    if (db_host == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): Database host is not specified\n"));
+        db_host = DEFAULT_DB_HOST;
+    }
+    db_port = get_int_value(get_config_value("db_port", config, num_entries));
+    if (db_port == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): Database port is not specified\n"));
+        db_port = DEFAULT_DB_PORT;
+    }
     // converting GraphQL schema to PostgresQL schema
-    resolvers = schema_convert(json_schema, file_types_reflection);
+    resolvers = schema_convert(json_schema, file_types_reflection, db_name, db_host, db_port);
     free((char *)json_schema);
     json_schema = NULL;
 
