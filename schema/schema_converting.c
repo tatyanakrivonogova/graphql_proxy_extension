@@ -4,7 +4,6 @@
 
 #include "../json_graphql/cJSON.h"
 #include "../json_graphql/resolvers/resolverLoader.h"
-#include "../postgres_connect/postgres_connect.h"
 #include "../hashmap/map.h"
 #include "operation_converting.h"
 #include "../defines.h"
@@ -12,6 +11,7 @@
 
 bool is_type_exists(char* type_name) {
     for (size_t i = 0; i < types.numCreatedTypes; ++i) {
+        elog(LOG, "is_type_exists(): %s %s\n", type_name, types.createdTypes[i]);
         if (strcmp(type_name, types.createdTypes[i]) == 0) return true;
     }
     return false;
@@ -19,17 +19,17 @@ bool is_type_exists(char* type_name) {
 
 
 void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
-    // drop old constraint
-    // "ALTER TABLE Message DROP CONSTRAINT IF EXISTS fk_Message_Person_sender;";
-    strcat(sql_alter, "ALTER TABLE graphql_proxy.");
-    strcat(sql_alter, table_name);
-    strcat(sql_alter, " DROP CONSTRAINT IF EXISTS fk_");
-    strcat(sql_alter, table_name);
-    strcat(sql_alter, "_");
-    strcat(sql_alter, another_table_name);
-    strcat(sql_alter, "_");
-    strcat(sql_alter, field_name);
-    strcat(sql_alter, ";");
+    // // drop old constraint
+    // // "ALTER TABLE Message DROP CONSTRAINT IF EXISTS fk_Message_Person_sender;";
+    // strcat(sql_alter, "ALTER TABLE graphql_proxy.");
+    // strcat(sql_alter, table_name);
+    // strcat(sql_alter, " DROP CONSTRAINT IF EXISTS fk_");
+    // strcat(sql_alter, table_name);
+    // strcat(sql_alter, "_");
+    // strcat(sql_alter, another_table_name);
+    // strcat(sql_alter, "_");
+    // strcat(sql_alter, field_name);
+    // strcat(sql_alter, ";");
     
     // query for adding foreign key   
     strcat(sql_alter, "ALTER TABLE graphql_proxy.");
@@ -55,6 +55,14 @@ void free_alter_queries(char** sql_alter_queries, size_t *sql_alter_queries_num)
         sql_alter_queries[i] = NULL;
     }
     *sql_alter_queries_num = 0;
+}
+
+void exec_drop_schema(PGconn **conn, PGresult **res) {
+    int status = exec_query(conn, "DROP SCHEMA IF EXISTS graphql_proxy CASCADE;", res);
+    if (status == 0) {
+        elog(LOG, "drop_schema(): Drop schema failed\n");
+    }
+    clearRes(res);
 }
 
 hashmap *schema_convert(const char *json_schema, const char* file_types_reflection, 
@@ -136,7 +144,10 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         definition = cJSON_GetArrayItem(definitions, i);
         definition_kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
         if (definition_kind != NULL && (cJSON_IsString(definition_kind)) && (definition_kind->valuestring != NULL)
-                && (strcmp(definition_kind->valuestring, "ObjectTypeDefinition") != 0)) continue;
+                && (strcmp(definition_kind->valuestring, "ObjectTypeDefinition") != 0)) {
+            elog(LOG, "schema_convert(): Skipping unsupported definition\n");
+            continue;
+        }
 
         definition_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
         definition_name_value = cJSON_GetObjectItemCaseSensitive(definition_name, "value");
@@ -147,7 +158,6 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                 continue;
             }
         }
-
         
         strcpy(sql_create, "CREATE TABLE IF NOT EXISTS graphql_proxy.");
         type_name = cJSON_GetObjectItemCaseSensitive(definition, "name");
@@ -269,6 +279,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                         convertedType = get_config_value(field_type_type_type_name_value->valuestring, configEntries, numEntries);
                         if (convertedType == NULL) {
                             elog(LOG, "schema_convert(): Type is not found: %s\n", field_type_type_type_name_value->valuestring);
+                            goto unsupported_table;
                         } else {
                             strcat(sql_create, convertedType);
                             strcat(sql_create, " ARRAY ");
@@ -276,7 +287,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
                     }
                 } else {
                     elog(LOG, "schema_convert(): Nested lists is not supported\n");
-                    goto nested_lists_fail;
+                    goto unsupported_table;
                 }
             }
             
@@ -297,7 +308,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         if (status == 0) {
             goto exec_create_fail;
         }
-        clearRes(&res);        
+        clearRes(&res);
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
             status = exec_query(&conn, sql_alter_queries[i], &res);
@@ -322,10 +333,11 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 exec_create_fail:
 exec_alter_fail:
 sql_alter_malloc_fail:
-nested_lists_fail:
+unsupported_table:
     free_alter_queries(sql_alter_queries, &sql_alter_queries_num);
     free(sql_create);
 sql_create_fail:
+    exec_drop_schema(&conn, &res);
 exec_create_schema_fail:
     free(sql_create_schema);
 sql_create_schema_fail:

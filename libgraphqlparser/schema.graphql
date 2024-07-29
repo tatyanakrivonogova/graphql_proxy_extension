@@ -11,7 +11,7 @@ type Message {
 }
 
 type Stat {
-  stat: [Int]!
+  stat: [Person]!
 }
 
 type Query {
