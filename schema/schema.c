@@ -3,6 +3,8 @@
 #include "postgres.h"
 #include <stdlib.h>
 
+Types types;
+
 void free_arguments(Operation *operation) {
     if (operation == NULL) return;
     for (size_t i = 0; i < operation->argumentsNumber; ++i) {
