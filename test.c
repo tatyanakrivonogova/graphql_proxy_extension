@@ -14,6 +14,8 @@
 #include <string.h>
 
 size_t test_number = 1;
+size_t ok = 0;
+size_t fail = 0;
 
 int findDiff(const char * buffer, const char * expectedResponse) {
     for (int i = 0; i < strlen(buffer); ++i) {
@@ -44,8 +46,11 @@ void check(int sd, const char *request, const char *expectedResponse) {
     int pos;
     if ((pos = strcmp(buffer, expectedResponse)) == 0) {
         printf("\t\tTest %ld: OK\n", test_number++);
+        ++ok;
     } else {
         printf("\t\tTest %ld: FAIL\n", test_number++);
+        ++fail;
+
         if (strlen(buffer) != strlen(expectedResponse)) {
             printf("Different length: buffer = %ld expectedResponse = %ld\n", strlen(buffer), strlen(expectedResponse));
             // for (int i = 0; i < strlen(expectedResponse); ++i) {
@@ -105,9 +110,17 @@ int main(int argc, char* argv[]) {
     // check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 8)\n}", 
     //           "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Ben\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}, \n {\"id\":8,\"name\":\"Tom\"}] } }");
 
+    // Simple mutation
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\")\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    printf("All tests was executed\n");
+    // Two mutations in one operation
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n");
+
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}", 
+              "HTTP/1.1 500 Internal Server Error\nContent-Type: application/json\n\n");
+
+    printf("All tests was executed. OK: %ld FAIL: %ld\n", ok, fail);
     return 0;
 }

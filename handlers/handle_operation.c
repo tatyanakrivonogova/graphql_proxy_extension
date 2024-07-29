@@ -120,6 +120,11 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
         definition_selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
         selections = cJSON_GetObjectItemCaseSensitive(definition_selection_set, "selections");
 
+        if (cJSON_GetArraySize(selections) != 1) {
+            elog(LOG, "handle_operation(): Only one operation may be called\n");
+            return NULL;
+        }
+
         for (int j = 0; j < cJSON_GetArraySize(selections); ++j)
         {
             cJSON *selection;
@@ -206,6 +211,8 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 } else {
                     elog(LOG, "handle_operation(): get_conn_index fail\n");
                 }
+
+                free_arg_values(&argValues);
                 return response;
             }
         }
