@@ -9,4 +9,7 @@ void
 free_conn_index(int fd);
 
 void
-printConns();
+print_conns();
+
+void
+close_conns();

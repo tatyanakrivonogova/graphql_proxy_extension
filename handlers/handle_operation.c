@@ -72,7 +72,7 @@ set_arguments_to_query_fail:
     return NULL;
 }
 
-void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
+char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
     cJSON *json;
     cJSON *definitions;
     char *query_for_execution;
@@ -84,12 +84,16 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
 			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_query);
 		}
 		cJSON_Delete(json);
-		return;
+		return NULL;
 	}
 
     // access the JSON data
 	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
     elog(LOG, "definitions: %p\n", definitions);
+    if (cJSON_GetArraySize(definitions) != 1) {
+        elog(LOG, "Request should consist one operation\n");
+        return NULL;
+    }
 
     for (int i = 0; i < cJSON_GetArraySize(definitions); ++i)
     {
@@ -188,6 +192,7 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 goto handle_operation_fail;
             } else {
                 int index;
+                char *response;
                 elog(LOG, "Set arguments to query successfully\n");
                 elog(LOG, "Query for execution: %s\n", query_for_execution);
 
@@ -195,18 +200,19 @@ void handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 if (get_conn_index(fd, &index)) {
                     elog(LOG, "execution...\n");
                     if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
-                        handle_query(conns[index].pg_res);
+                        response = handle_query(&conns[index].pg_res);
                     } else {
                         elog(ERROR, "Query execution failed.");
                     }
-                    elog(LOG, "after handle_query\n");
                 } else {
                     elog(LOG, "get_conn_index fail\n");
                 }
+                return response;
             }
         }
         
 handle_operation_fail:
         elog(LOG, "handle_operation_fail\n");
+        return NULL;
     }
 }

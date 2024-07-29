@@ -7,6 +7,34 @@ Content-Length: 0
 
 INSERT INTO table1 values(9876);
 
+GET /query HTTP/1.0
+Content-Length: 0
+
+query {
+  getPerson(id: 8) {
+    id
+    name
+  }
+}
+
+POST /query HTTP/1.1
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: ru,en;q=0.9
+Connection: keep-alive
+Content-Length: 104
+Host: localhost:8080
+Origin: http://localhost:8080
+Referer: http://localhost:8080/
+Accept: application/json, multipart/mixed
+Content-type: application/json
+
+query {
+  getPerson(id: 8) {
+    id
+    name
+  }
+}
+
 ------------------------------------------------------------
 
 GET /query HTTP/1.0
@@ -146,6 +174,5 @@ select json_agg("sub/2") AS book
     LATERAL (
       select * from book;
     );
-
 
 

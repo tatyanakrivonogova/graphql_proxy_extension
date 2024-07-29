@@ -3,7 +3,7 @@
 #include "postgres.h"
 #include <stdlib.h>
 
-struct Types types;
+Types types;
 
 void free_arguments(Operation *operation) {
     if (operation == NULL) return;

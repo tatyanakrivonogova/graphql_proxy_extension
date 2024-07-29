@@ -1,6 +1,7 @@
 #include "postgres_connect.h"
 
 #include "postgres.h"
+#include <unistd.h>
 
 void 
 test_connect(void) {
@@ -13,7 +14,6 @@ test_connect(void) {
         return;
     }
 
-    // char* query = "SELECT * FROM table1;";
     //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
     exec_query(&pg_conn, "SELECT * FROM table1;", &res);
     exec_query(&pg_conn, query, &res);
@@ -36,8 +36,14 @@ test_connect(void) {
         elog(LOG, "-------------------------------------------------------");
     }
 
-    //clear used resources
+    // clear used resources
     close_connection(&pg_conn, &res);
+}
+
+void
+clearRes(PGresult** res) {
+    if (*res != NULL) PQclear(*res);
+    *res = NULL;
 }
 
 int 
@@ -59,7 +65,7 @@ create_connection(PGconn** pg_conn, char* conn_info) {
 
 void
 close_connection(PGconn** pg_conn, PGresult **pg_res) {
-    PQclear(*pg_res);
+    clearRes(pg_res);
     PQfinish(*pg_conn);
     elog(LOG, "Libpq connection closed");
 }
@@ -77,59 +83,53 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
     if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
         elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*pg_conn));
-        PQclear(*res);
+        clearRes(res);
         return 0;
     }
     return 1;
 }
 
-// void handle_query(PGresult* res) {
-//     int rows, cols;
 
-//     rows = PQntuples(res);
-//     cols = PQnfields(res);
-
-//     elog(LOG, "Number of rows: %d\n", rows);
-//     elog(LOG, "Number of columns: %d\n", cols);
-//     // Print the column names
-//     for (int i = 0; i < cols; i++) {
-//         elog(LOG, "%s\t", PQfname(res, i));
-//     }
-
-//     // Print all the rows and columns
-//     for (int i = 0; i < rows; i++) {
-//         for (int j = 0; j < cols; j++) {
-//         // Print the column value
-//             elog(LOG, "%s\t", PQgetvalue(res, i, j));
-//         }
-//         elog(LOG, "-------------------------------------------------------");
-//     }
-// }
-
-void handle_query(PGresult* res) {
+char *handle_query(PGresult** res) {
     int rows;
     int cols;
-    if (res == NULL) {
-        elog(ERROR, "Received NULL PGresult.");
-        return;
+    char jsonResponse[RESPONSE_LENGTH];
+    
+    char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
+    if (httpResponse == NULL) {
+        elog(LOG, "httpResponse malloc failed\n");
+        return NULL;
     }
 
-    rows = PQntuples(res);
-    cols = PQnfields(res);
+    rows = PQntuples(*res);
+    cols = PQnfields(*res);
 
     elog(LOG, "Number of rows: %d\n", rows);
     elog(LOG, "Number of columns: %d\n", cols);
 
-    // Print the column names
+    // Create JSON response string
+    snprintf(jsonResponse, RESPONSE_LENGTH, "{ \"data\": { ");
+
+    // Add column name to response
     for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(res, i));
+        snprintf(jsonResponse, RESPONSE_LENGTH, "%s\"%s\": ", jsonResponse, PQfname(*res, i));
     }
 
-    // Print all the rows and columns
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            elog(LOG, "%s\t", PQgetvalue(res, i, j));
-        }
-        elog(LOG, "-------------------------------------------------------");
+    // Add json data to response
+    snprintf(jsonResponse, RESPONSE_LENGTH, "%s%s", jsonResponse, PQgetvalue(*res, 0, 0));
+
+    snprintf(jsonResponse, RESPONSE_LENGTH, "%s } }", jsonResponse);
+
+    elog(LOG, "jsonResponse: %s\n", jsonResponse);
+
+    // Form HTTP response
+    if (*res == NULL) {
+        snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
+    } else {
+        elog(LOG, "Received NULL PGresult.");
+        snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
     }
+    
+    elog(LOG, "HTTP Response: %s", httpResponse);
+    return httpResponse;
 }

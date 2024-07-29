@@ -9,52 +9,68 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-const char *schema_to_json() {
-  const char *error;
-  long fileSize;
-  char* buffer;
-  size_t bytesRead;
-  struct GraphQLAstNode * AST;
-  const char *json;
+/*
+ * Reading schema SDL and representation to json format for futher using.
+ */
 
-  FILE* file = fopen("../contrib/graphql_proxy/libgraphqlparser/schema.graphql", "rb");
-  if (!file) {
-      elog(LOG, "Open file failed schema_to_json\n");
-      return NULL;
-  }
+const char *schema_to_json(const char *schema_file) {
+    const char *error;
+    long fileSize;
+    char* buffer;
+    size_t bytesRead;
+    struct GraphQLAstNode * AST;
+    const char *json;
 
-  fseek(file, 0, SEEK_END);
-  fileSize = ftell(file);
-  rewind(file);
+    // open file with schema
+    FILE* file = fopen(schema_file, "rb");
+    if (!file) {
+        elog(LOG, "Open file %s failed\n", schema_file);
+        return NULL;
+    }
 
-  buffer = (char*)malloc(fileSize + 1);
-  if (!buffer) {
-      elog(LOG, "Malloc failed\n");
-      fclose(file);
-      return NULL;
-  }
+    // get file size
+    fseek(file, 0, SEEK_END);
+    fileSize = ftell(file);
+    rewind(file);
 
-  bytesRead = fread(buffer, 1, fileSize, file);
-  if (bytesRead != fileSize) {
-      elog(LOG, "Read file error\n");
-      free(buffer);
-      fclose(file);
-      return NULL;
-  }
+    // allocate memory for schema
+    buffer = (char*)malloc(fileSize + 1);
+    if (!buffer) {
+        elog(LOG, "Malloc for reading schema failed\n");
+        fclose(file);
+        return NULL;
+    }
 
-  buffer[fileSize] = '\0';
-  fclose(file);
+    // read schema
+    bytesRead = fread(buffer, 1, fileSize, file);
+    if (bytesRead != fileSize) {
+        elog(LOG, "Reading schema failed\n");
+        free(buffer);
+        fclose(file);
+        return NULL;
+    }
 
-  AST = graphql_parse_string_with_experimental_schema_support((const char *)buffer, &error);
-  if (!AST) {
-    printf("Parser failed with error: %s\n", error);
-    free((void *)error);
-    return NULL;
-  }
+    buffer[fileSize] = '\0';
+    fclose(file);
 
-  json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
-//   puts(json);
-//   free((void *)json);
+    // parse schema to AST
+    AST = graphql_parse_string_with_experimental_schema_support((const char *)buffer, &error);
+    if (!AST) {
+        elog(LOG, "Parsing schema to AST failed: %s\n", error);
+        free((void *)error);
+        free(buffer);
+        return NULL;
+    }
+    free(buffer);
 
-  return json;
+    // parse AST to json
+    json = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
+    if (!json) {
+        elog(LOG, "Parsing schema to json failed\n");
+        graphql_node_free(AST);
+        return NULL;
+    }
+    graphql_node_free(AST);
+
+    return json;
 }

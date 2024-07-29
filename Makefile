@@ -19,6 +19,7 @@ OBJS = \
   json_graphql/resolvers/resolverLoader.o \
   libgraphqlparser/schema_to_json.o \
   query_parser/query_parser.o \
+  response_creator/response_creator.o \
   graphql_proxy.o
 
 EXTENSION = graphql_proxy

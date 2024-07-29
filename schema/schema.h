@@ -32,7 +32,7 @@ typedef struct Types{
     size_t numCreatedTypes;
     char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
 } Types;
-extern struct Types types;
+extern Types types;
 
 
 // mutation with sql-function and argument types

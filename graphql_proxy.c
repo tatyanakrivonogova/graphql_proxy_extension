@@ -1,3 +1,4 @@
+#include "config/config.h"
 #include "io_uring/event_handling.h"
 #include "http/input_parsing.h"
 #include "schema/schema_converting.h"
@@ -12,8 +13,10 @@
 #include "executor/executor.h"
 #include "postmaster/bgworker.h"
 #include "miscadmin.h"
+#include "storage/proc.h"
 #include "postmaster/interrupt.h"
 #include "tcop/tcopprot.h"
+#include "storage/ipc.h"
 
 #include <arpa/inet.h>
 #include <arpa/inet.h>
@@ -26,13 +29,24 @@
 #include <unistd.h>
 #include <netinet/in.h>
 
+
 #define DEFAULT_PORT            (7879)
 #define DEFAULT_BACKLOG_SIZE    (512)
-#define MAX_ENTRIES          (10)
+#define DEFAULT_MAX_ENTRIES          (10)
 
 PG_MODULE_MAGIC;
 static void graphql_proxy_start_worker(void);
 PGDLLEXPORT void graphql_proxy_main(Datum main_arg);
+void shutdown_graphql_proxy_server();
+void sigterm_handler(int sig);
+void sigquit_handler(int sig);
+
+ConfigEntry *config;
+size_t num_entries;
+hashmap *resolvers;
+int listen_socket = 0;
+const char *json_schema = NULL;
+
 
 void
 _PG_init(void) {
@@ -54,87 +68,175 @@ graphql_proxy_start_worker(void) {
 	RegisterBackgroundWorker(&worker);
 }
 
-int print_entry(const void* key, size_t ksize, uintptr_t value, void* usr)
-{
-	elog(LOG, "Entry \"%s\": %s\n", (char *)key, (char *)value);
-    return 0;
+void shutdown_graphql_proxy_server() {
+    if ((listen_socket != 0) && (listen_socket != -1)) close(listen_socket);
+    listen_socket = 0;
+
+    if (resolvers) hashmap_free(resolvers);
+    resolvers = NULL;
+
+    if (json_schema) free((char *) json_schema);
+    json_schema = NULL;
+
+    // close clients sockets and connections to database
+    close_conns();
+    
+    // free config entries
+    if (config) free_config(config, num_entries);
+
+    elog(LOG, "graphql_proxy_main(): --------------shutdown proxy server-----------------\n");
+    proc_exit(0);
+}
+
+void sigterm_handler(int sig) {
+    if (sig == SIGTERM) {
+        elog(LOG, "graphql_proxy_main(): ----------Received SIGTERM signal---------------");
+        shutdown_graphql_proxy_server();   
+    } 
+}
+
+void sigquit_handler(int sig) {
+    if (sig == SIGQUIT) {
+        elog(LOG, "graphql_proxy_main(): ----------Received SIGQUIT signal----------------");
+        shutdown_graphql_proxy_server();
+    }
 }
 
 void
 graphql_proxy_main(Datum main_arg) {
+    int port = 0;
+    int backlog_size = 0;
+    int max_entries = 0;
+    char *file_schema = NULL;
+    char *file_types_reflection = NULL;
+
     struct io_uring_params params;
     struct io_uring ring;
     int cqe_count;
-    int listen_socket;
     const int val = 1;
-    int error;
 
+    struct sockaddr_in client_addr;
+    socklen_t client_len;
+
+    // set signal handlers
+    pqsignal(SIGTERM, sigterm_handler);
+    pqsignal(SIGQUIT, sigquit_handler);
+    BackgroundWorkerUnblockSignals();
+
+    client_len = sizeof(client_addr);
+
+    // load config
+    config = load_config_file("../contrib/graphql_proxy/proxy.conf", &num_entries);
+    if (config == NULL) {
+        ereport(LOG, errmsg("graphql_proxy_main(): config loading failed\n"));
+        shutdown_graphql_proxy_server();
+    }
+
+    // get port value from config
+    port = get_int_value(get_config_value("port", config, num_entries));
+    if (port == 0) {
+        port = DEFAULT_PORT;
+    }
+    elog(LOG, "graphql_proxy_main(): port=%d\n", port);
     struct sockaddr_in sockaddr = {
         .sin_family = AF_INET,
-        .sin_port = htons(DEFAULT_PORT),
+        .sin_port = htons(port),
         .sin_addr.s_addr = INADDR_ANY,
     };
-    struct sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
 
+    // get file with schema
+    file_schema = get_config_value("schema", config, num_entries);
+    if (file_schema == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): File with schema is not specified\n"));
+        shutdown_graphql_proxy_server();
+    }
     // get json schema
-    const char *json_schema = schema_to_json();
-    // parse schema
-    hashmap *resolvers = schema_convert(json_schema);
-    elog(LOG, "after schema_convert\n");
+    json_schema = schema_to_json(file_schema);
+    if (!json_schema) {
+        ereport(LOG, errmsg("graphql_proxy_main(): Getting json representation of schema failed\n"));
+        shutdown_graphql_proxy_server();
+    }
 
-    error = hashmap_iterate(resolvers, print_entry, NULL);
-    if (error == -1)
-        elog(LOG, "!!!---------hashmap_iterate error\n");
+    // get file with reflection graphql types to postgresql types
+    file_types_reflection = get_config_value("types_reflection", config, num_entries);
+    if (file_types_reflection == 0) {
+        ereport(LOG, errmsg("graphql_proxy_main(): File with types reflection is not specified\n"));
+        shutdown_graphql_proxy_server();
+    }
+    // converting GraphQL schema to PostgresQL schema
+    resolvers = schema_convert(json_schema, file_types_reflection);
+    free((char *)json_schema);
+    json_schema = NULL;
 
-    // hashmap_free(resolvers);
-
-
+    // create server socket
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("socket(): %s\n", errorbuf));
-        return;
+        ereport(LOG, errmsg("graphql_proxy_main(): socket() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
-    setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    if (setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == -1) {
+        char* errorbuf = strerror(errno);
+        ereport(LOG, errmsg("graphql_proxy_main(): setsockopt() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
+    }
 
     if (bind(listen_socket, (struct sockaddr *)&sockaddr, sizeof(sockaddr))) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("bind() error: %s\n", errorbuf));
-        goto socket_bind_fail;
+        ereport(LOG, errmsg("graphql_proxy_main(): bind() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
-    if (listen(listen_socket, DEFAULT_BACKLOG_SIZE)) {
+    // get backlog size value from config
+    backlog_size = get_int_value(get_config_value("backlog_size", config, num_entries));
+    if (backlog_size == 0) {
+        backlog_size = DEFAULT_BACKLOG_SIZE;
+    }
+    elog(LOG, "graphql_proxy_main(): backlog_size=%d\n", backlog_size);
+    if (listen(listen_socket, backlog_size)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("listen() error: %s\n", errorbuf));
-        goto socket_listen_fail;
+        ereport(LOG, errmsg("graphql_proxy_main(): listen() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
     memset(&params, 0, sizeof(params));
-
-    if (io_uring_queue_init_params(MAX_ENTRIES, &ring, &params)) {
+    // get max entries value from config
+    max_entries = get_int_value(get_config_value("max_entries", config, num_entries));
+    if (max_entries == 0) {
+        max_entries = DEFAULT_MAX_ENTRIES;
+    }
+    elog(LOG, "graphql_proxy_main(): max_entries=%d\n", max_entries);
+    if (io_uring_queue_init_params(max_entries, &ring, &params)) {
         char* errorbuf = strerror(errno);
-        ereport(ERROR, errmsg("uring_init_params() error: %s\n", errorbuf));
+        ereport(LOG, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));
+        shutdown_graphql_proxy_server();
     }
 
     if (!(params.features & IORING_FEAT_FAST_POLL)) {
-        elog(LOG, "IORING_FEAT_FAST_POLL is not available in the kernel((\n");
+        ereport(LOG, errmsg("graphql_proxy_main(): IORING_FEAT_FAST_POLL is not available in the kernel\n"));
+        shutdown_graphql_proxy_server();
     }
     
+    // start accepting clients
     add_accept(&ring, listen_socket, (struct sockaddr *) &client_addr, &client_len);
 
     while (true)
     {
-        int ret;
         struct io_uring_cqe *cqe;
         struct io_uring_cqe *cqes[DEFAULT_BACKLOG_SIZE];
 
+        // send sqes to execute in the kernel
         io_uring_submit(&ring);
 
-        ret = io_uring_wait_cqe(&ring, &cqe);
-        assert(ret == 0);
+        // wait for cqes
+        if (io_uring_wait_cqe(&ring, &cqe) != 0) {
+            char* errorbuf = strerror(errno);
+            ereport(LOG, errmsg("graphql_proxy_main(): io_uring_wait_cqe() error\nError: %s\n", errorbuf));
+            shutdown_graphql_proxy_server();
+        }
 
+        // get array of cqes
         cqe_count = io_uring_peek_batch_cqe(&ring, cqes, sizeof(cqes) / sizeof(cqes[0]));
 
         for (int i = 0; i < cqe_count; i++) {
@@ -151,28 +253,21 @@ graphql_proxy_main(Datum main_arg) {
             } else if (type == READ) {
                 int bytes_read = cqe->res;
                 if (bytes_read <= 0) {
-                    elog(LOG, "-------socket shutdown--------\n");
+                    elog(LOG, "graphql_proxy_main(): client %d disconnected\n", user_data->fd);
                     socket_close(user_data, SHUT_RDWR);
-                    // shutdown(user_data->fd, SHUT_RDWR);
-                    // free_conn_index(user_data->fd); 
                 } else {
-                    //parse input
+                    // handle http-request
                     int outputSize;
                     parse_input((char*)&bufs[user_data->fd], bytes_read, &outputSize, user_data->fd, resolvers);
                     add_socket_write(&ring, user_data->fd, outputSize);
-                    // printConns();
                 }
             } else if (type == WRITE) {
                 add_socket_read(&ring, user_data->fd, MAX_MESSAGE_LEN);
-                // elog(LOG, "shutdown socket on fd: %d", user_data->fd);
-                // shutdown(user_data->fd, SHUT_RDWR);
             }
+
+            // mark cqe as handled
             io_uring_cqe_seen(&ring, cqe);
         }
     }
-
-socket_listen_fail:
-socket_bind_fail:
-    close(listen_socket);
     return;
 }
