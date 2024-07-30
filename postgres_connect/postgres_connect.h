@@ -18,4 +18,4 @@ int
 exec_query(PGconn** pg_conn, char *query, PGresult** res);
 
 char * 
-handle_query(PGresult** res);
+handle_query(PGresult** res, int *server_error);

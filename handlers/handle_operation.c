@@ -17,7 +17,7 @@ void free_arg_values(ArgValues *argValues) {
     }
 }
 
-char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues *argValues) {
+char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues *argValues, int *server_error) {
     uintptr_t res;
     char *format_query;
     char *query;
@@ -34,6 +34,7 @@ char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues
         query = (char *)malloc(QUERY_LENGTH);
     } else {
         elog(LOG, "set_arguments_to_query(): sql format_query for %s not found.\n", operation_name);
+        *server_error = 1;
         return NULL;
     }
 
@@ -72,7 +73,7 @@ set_arguments_to_query_fail:
     return NULL;
 }
 
-char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
+char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *server_error) {
     cJSON *json;
     cJSON *definitions;
     char *query_for_execution;
@@ -184,7 +185,7 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
         argValues.argValues[k] = currentArgValue;
     }
 
-    if ((query_for_execution = set_arguments_to_query(resolvers, selection_name_value->valuestring, &argValues)) == NULL) {
+    if ((query_for_execution = set_arguments_to_query(resolvers, selection_name_value->valuestring, &argValues, server_error)) == NULL) {
         elog(LOG, "handle_operation(): Set arguments to query failed\n");
         goto handle_operation_fail;
     } else {
@@ -197,12 +198,14 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
         if (get_conn_index(fd, &index)) {
             elog(LOG, "handle_operation(): execution...\n");
             if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
-                response = handle_query(&conns[index].pg_res);
+                response = handle_query(&conns[index].pg_res, server_error);
             } else {
                 elog(LOG, "handle_operation(): Query execution failed.");
+                *server_error = 1;
             }
         } else {
             elog(LOG, "handle_operation(): get_conn_index fail\n");
+            *server_error = 1;
         }
 
         free_arg_values(&argValues);
@@ -211,6 +214,5 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd) {
     
 handle_operation_fail:
     elog(LOG, "handle_operation(): handle_operation_fail\n");
-
     return NULL;
 }

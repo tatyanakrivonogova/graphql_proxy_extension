@@ -5,7 +5,7 @@
 #include "../io_uring/multiple_user_access.h"
 #include "../postgres_connect/postgres_connect.h"
 #include "http_parser.h"
-#include "../handlers/handlers.h"
+#include "../handlers/handle_operation.h"
 #include "../response_creator/response_creator.h"
 #include "../libgraphqlparser/c/GraphQLAstNode.h"
 #include "../libgraphqlparser/c/GraphQLParser.h"
@@ -47,6 +47,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
     const char *error = NULL;
     struct GraphQLAstNode * AST = NULL;
     const char *json_query = NULL;
+    int server_error = 0;
 
     *output_size = 0;
 
@@ -131,7 +132,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
         elog(LOG, "parse_input(): parsed json query: %s\n", json_query);
 
         // handle operation and get response
-        response = handle_operation(json_query, resolvers, fd);
+        response = handle_operation(json_query, resolvers, fd, &server_error);
 
         // copy response for sending
         if (response != NULL) {
@@ -141,7 +142,11 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
             response = NULL;
         } else {
             // send error
-            create_response_500(buffer, output_size);
+            if (server_error == 1) {
+                create_response_500(buffer, output_size);
+            } else {
+                create_response_400(buffer, output_size);
+            }
             response = NULL;
         }
 

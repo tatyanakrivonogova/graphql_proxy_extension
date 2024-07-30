@@ -90,7 +90,7 @@ exec_query(PGconn** pg_conn, char *query, PGresult** res) {
 }
 
 
-char *handle_query(PGresult** res) {
+char *handle_query(PGresult** res, int *server_error) {
     int rows;
     int cols;
     char jsonResponse[RESPONSE_LENGTH];
@@ -98,6 +98,7 @@ char *handle_query(PGresult** res) {
     char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
     if (httpResponse == NULL) {
         elog(LOG, "httpResponse malloc failed\n");
+        *server_error = 1;
         return NULL;
     }
 
