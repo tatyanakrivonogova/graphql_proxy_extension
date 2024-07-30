@@ -9,7 +9,7 @@
 
 #include "postgres.h"
 
-void free_arg_values(ArgValues *argValues) {
+void free_arg_values(struct ArgValues *argValues) {
     if (argValues != NULL) {
         for (size_t i = 0; i < argValues->argNumber; ++i) {
             free(argValues->argValues[i]);
@@ -17,7 +17,7 @@ void free_arg_values(ArgValues *argValues) {
     }
 }
 
-char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues *argValues) {
+char *set_arguments_to_query(hashmap *resolvers, char *operation_name, struct ArgValues *argValues) {
     uintptr_t res;
     char *format_query;
     char *query;
@@ -127,7 +127,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
             cJSON *selection_name;
             cJSON *selection_name_value;
             cJSON *selection_arguments;
-            ArgValues argValues;
+            struct ArgValues argValues;
 
             selection = cJSON_GetArrayItem(selections, j);
             selection_name = cJSON_GetObjectItemCaseSensitive(selection, "name");
@@ -147,7 +147,7 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 cJSON *argument_value_kind;
                 cJSON *argument_value_value;
 
-                ArgValue *currentArgValue = (ArgValue *)malloc(sizeof(ArgValue));
+                struct ArgValue *currentArgValue = (struct ArgValue *)malloc(sizeof(struct ArgValue));
                 if (currentArgValue == NULL) {
                     elog(LOG, "Argument value malloc failed\n");
                     free_arg_values(&argValues);

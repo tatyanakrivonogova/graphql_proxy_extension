@@ -36,6 +36,20 @@ query {
       id,
       author,
       title
+    },
+    age
+  }
+}
+
+
+
+  getPerson(id: 6) {
+    id,
+    name,
+    book {
+      id,
+      author,
+      title
     }
   }
 }
