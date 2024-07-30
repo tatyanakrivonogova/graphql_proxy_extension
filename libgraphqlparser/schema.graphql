@@ -7,7 +7,7 @@ type Message {
   id: Int!
   msg: String!
   sender: Person!
-  receivers: Person!
+  receiver: Person!
 }
 
 type Stat {
