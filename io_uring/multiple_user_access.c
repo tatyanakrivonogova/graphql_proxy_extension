@@ -11,10 +11,13 @@ reserve_conn_structure(int fd) {
     char *conn_info;
     
     elog(LOG, "reserve_conn_structure(): reserve conn for fd: %d", fd);
+    // print_conns();
+
     res = get_conn_index(fd, &index);
     if (res) {
         elog(LOG, "reserve_conn_structure(): index for fd: %d is reserved - %d", fd, res);
-        goto reserve_done;
+        // goto reserve_done;
+        return 1;
     }
 
     for (int i = 0; i < MAX_CONNECTIONS; i++) {

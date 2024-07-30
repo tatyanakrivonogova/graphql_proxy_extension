@@ -3,43 +3,6 @@
 #include "postgres.h"
 #include <unistd.h>
 
-void 
-test_connect(void) {
-    char *query = "INSERT INTO table1 values(500);";
-    char *conn_info = "dbname=postgres host=localhost port=5432";
-    int rows, cols;
-    PGconn *pg_conn;
-    PGresult *res;
-    if (!create_connection(&pg_conn, conn_info)) {
-        return;
-    }
-
-    //it is possible to exec many commands like "INSERT INTO table1 values(5); SELECT * FROM table1;"
-    exec_query(&pg_conn, "SELECT * FROM table1;", &res);
-    exec_query(&pg_conn, query, &res);
-    rows = PQntuples(res);
-    cols = PQnfields(res);
-
-    elog(LOG, "Number of rows: %d", rows);
-    elog(LOG, "Number of columns: %d", cols);
-    // Print the column names
-    for (int i = 0; i < cols; i++) {
-        elog(LOG, "%s\t", PQfname(res, i));
-    }
-
-    // Print all the rows and columns
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-        // Print the column value
-            elog(LOG, "%s\t", PQgetvalue(res, i, j));
-        }
-        elog(LOG, "-------------------------------------------------------");
-    }
-
-    // clear used resources
-    close_connection(&pg_conn, &res);
-}
-
 void
 clearRes(PGresult** res) {
     if (*res != NULL) PQclear(*res);
@@ -51,15 +14,15 @@ create_connection(PGconn** pg_conn, char* conn_info) {
     *pg_conn = PQconnectdb(conn_info);
 
     if (PQstatus(*pg_conn) != CONNECTION_OK) {
-        elog(ERROR, "Error while connecting to the database server: %s\n", PQerrorMessage(*pg_conn));
+        elog(ERROR, "create_connection(): Error while connecting to the database server: %s\n", PQerrorMessage(*pg_conn));
         PQfinish(*pg_conn);
         return 0;
     }
     // We have successfully established a connection to the database server
-    elog(LOG, "\nConnection Established");
-    elog(LOG, "Port: %s", PQport(*pg_conn));
-    elog(LOG, "Host: %s", PQhost(*pg_conn));
-    elog(LOG, "DBName: %s", PQdb(*pg_conn));
+    elog(LOG, "\ncreate_connection(): Connection Established");
+    elog(LOG, "create_connection(): Port: %s", PQport(*pg_conn));
+    elog(LOG, "create_connection(): Host: %s", PQhost(*pg_conn));
+    elog(LOG, "create_connection(): DBName: %s", PQdb(*pg_conn));
     return 1;
 }
 
@@ -67,22 +30,22 @@ void
 close_connection(PGconn** pg_conn, PGresult **pg_res) {
     clearRes(pg_res);
     PQfinish(*pg_conn);
-    elog(LOG, "Libpq connection closed");
+    elog(LOG, "close_connection(): Libpq connection closed");
 }
 
 int
 exec_query(PGconn** pg_conn, char *query, PGresult** res) {
     ExecStatusType resStatus;
-    elog(LOG, "Start execution query: %s", query);
+    elog(LOG, "exec_query(): Start execution query: %s", query);
     *res = PQexec(*pg_conn, query);
     resStatus = PQresultStatus(*res);
     // convert status to string and log
-    elog(LOG, "Finish execution query with status: %s", PQresStatus(resStatus));
+    elog(LOG, "exec_query(): Finish execution query with status: %s", PQresStatus(resStatus));
 
     //PGRES_COMMAN_OK - Successful completion of a command returning no data
     //PGRES_TUPLES_OK - Successful completion of a command returning data (such as a SELECT or SHOW)
     if (resStatus != PGRES_TUPLES_OK && resStatus != PGRES_COMMAND_OK) {
-        elog(ERROR, "Error while executing the query: %s", PQerrorMessage(*pg_conn));
+        elog(ERROR, "exec_query(): Error while executing the query: %s", PQerrorMessage(*pg_conn));
         clearRes(res);
         return 0;
     }
@@ -97,7 +60,7 @@ char *handle_query(PGresult** res, int *server_error) {
     
     char *httpResponse = (char *)malloc(RESPONSE_LENGTH);
     if (httpResponse == NULL) {
-        elog(LOG, "httpResponse malloc failed\n");
+        elog(LOG, "handle_query(): httpResponse malloc failed\n");
         *server_error = 1;
         return NULL;
     }
@@ -105,8 +68,8 @@ char *handle_query(PGresult** res, int *server_error) {
     rows = PQntuples(*res);
     cols = PQnfields(*res);
 
-    elog(LOG, "Number of rows: %d\n", rows);
-    elog(LOG, "Number of columns: %d\n", cols);
+    elog(LOG, "handle_query(): Number of rows: %d\n", rows);
+    elog(LOG, "handle_query(): Number of columns: %d\n", cols);
 
     // Create JSON response string
     snprintf(jsonResponse, RESPONSE_LENGTH, "{ \"data\": { ");
@@ -121,16 +84,16 @@ char *handle_query(PGresult** res, int *server_error) {
 
     snprintf(jsonResponse, RESPONSE_LENGTH, "%s } }", jsonResponse);
 
-    elog(LOG, "jsonResponse: %s\n", jsonResponse);
+    elog(LOG, "handle_query(): jsonResponse: %s\n", jsonResponse);
 
     // Form HTTP response
     if (*res == NULL) {
         snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
     } else {
-        elog(LOG, "Received NULL PGresult.");
+        elog(LOG, "handle_query(): Received NULL PGresult.");
         snprintf(httpResponse, RESPONSE_LENGTH, "%s", jsonResponse);
     }
     
-    elog(LOG, "HTTP Response: %s", httpResponse);
+    elog(LOG, "handle_query(): HTTP Response: %s", httpResponse);
     return httpResponse;
 }

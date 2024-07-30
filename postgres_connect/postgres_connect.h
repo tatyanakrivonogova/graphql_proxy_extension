@@ -2,9 +2,6 @@
 
 #define RESPONSE_LENGTH 4096
 
-void 
-test_connect(void);
-
 void
 clearRes(PGresult** res);
 

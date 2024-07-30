@@ -69,17 +69,26 @@ void shutdown_graphql_proxy_server() {
     if ((listen_socket != 0) && (listen_socket != -1)) close(listen_socket);
     listen_socket = 0;
 
-    if (resolvers) hashmap_free(resolvers);
-    resolvers = NULL;
+    if (resolvers) {
+        hashmap_free(resolvers);
+        resolvers = NULL;
+        elog(LOG, "shutdown_graphql_proxy_server(): hashmap resolvers is free\n");
+    }
 
-    if (json_schema) free((char *) json_schema);
-    json_schema = NULL;
+    if (json_schema) {
+        free((char *) json_schema);
+        json_schema = NULL;
+        elog(LOG, "shutdown_graphql_proxy_server(): json schema is free");
+    }
 
     // close clients sockets and connections to database
     close_conns();
     
     // free config entries
-    if (config) free_config(config, num_entries);
+    if (config) {
+        free_config(config, num_entries);
+        elog(LOG, "shutdown_graphql_proxy_server(): config is free");
+    }
 
     elog(LOG, "graphql_proxy_main(): --------------shutdown proxy server-----------------\n");
     proc_exit(0);
@@ -196,6 +205,7 @@ graphql_proxy_main(Datum main_arg) {
 
     // create server socket
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    elog(LOG, "graphql_proxy_main(): listen_socket: %d\n", listen_socket);
     if (listen_socket == -1) {
         char* errorbuf = strerror(errno);
         ereport(LOG, errmsg("graphql_proxy_main(): socket() error\nError: %s\n", errorbuf));
@@ -233,6 +243,7 @@ graphql_proxy_main(Datum main_arg) {
         max_entries = DEFAULT_MAX_ENTRIES;
     }
     elog(LOG, "graphql_proxy_main(): max_entries=%d\n", max_entries);
+
     if (io_uring_queue_init_params(max_entries, &ring, &params)) {
         char* errorbuf = strerror(errno);
         ereport(LOG, errmsg("graphql_proxy_main(): uring_init_params() error\nError: %s\n", errorbuf));

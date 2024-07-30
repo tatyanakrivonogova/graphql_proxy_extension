@@ -324,6 +324,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
 
     free(sql_create);
+    free(sql_create_schema);
     cJSON_Delete(json);
     free_config(configEntries, numEntries);
     close_connection(&conn, &res);
