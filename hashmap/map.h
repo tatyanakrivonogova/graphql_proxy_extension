@@ -32,6 +32,9 @@ hashmap* hashmap_create(void);
 // to free data associated with an element, call `hashmap_iterate`.
 void hashmap_free(hashmap* map);
 
+int free_key_value(const void* key, size_t ksize, uintptr_t value, void* usr);
+void hashmap_free_all(hashmap* map);
+
 // does not make a copy of `key`.
 // you must copy it yourself if you want to guarantee its lifetime,
 // or if you intend to call `hashmap_key_free`.

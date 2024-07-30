@@ -70,7 +70,7 @@ void shutdown_graphql_proxy_server() {
     listen_socket = 0;
 
     if (resolvers) {
-        hashmap_free(resolvers);
+        hashmap_free_all(resolvers);
         resolvers = NULL;
         elog(LOG, "shutdown_graphql_proxy_server(): hashmap resolvers is free\n");
     }

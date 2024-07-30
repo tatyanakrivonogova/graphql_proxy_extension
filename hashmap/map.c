@@ -7,6 +7,7 @@
 #include "map.h"
 #include <stdlib.h>
 #include <string.h>
+#include "../schema/schema.h"
 //#include <stdio.h>
 
 #define HASHMAP_DEFAULT_CAPACITY 20
@@ -77,6 +78,19 @@ void hashmap_free(hashmap* m)
 {
 	free(m->buckets);
 	free(m);
+}
+
+int free_key_value(const void* key, size_t ksize, uintptr_t value, void* usr)
+{
+	free((char *)key);
+	free(((Operation *)value)->operationSql);
+	free_arguments((Operation *)value);
+	free((Operation *)value);
+	return 0;
+}
+
+void hashmap_free_all(hashmap* m) {
+	hashmap_iterate(m, free_key_value, NULL);
 }
 
 // puts an old bucket into a resized hashmap

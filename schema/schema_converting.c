@@ -18,20 +18,8 @@ bool is_type_exists(char* type_name) {
 }
 
 
-void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {
-    // // drop old constraint
-    // // "ALTER TABLE Message DROP CONSTRAINT IF EXISTS fk_Message_Person_sender;";
-    // strcat(sql_alter, "ALTER TABLE graphql_proxy.");
-    // strcat(sql_alter, table_name);
-    // strcat(sql_alter, " DROP CONSTRAINT IF EXISTS fk_");
-    // strcat(sql_alter, table_name);
-    // strcat(sql_alter, "_");
-    // strcat(sql_alter, another_table_name);
-    // strcat(sql_alter, "_");
-    // strcat(sql_alter, field_name);
-    // strcat(sql_alter, ";");
-    
-    // query for adding foreign key   
+void create_foreign_key(char* sql_alter, char* table_name, char* another_table_name, char* field_name) {  
+    // query for adding foreign key
     strcat(sql_alter, "ALTER TABLE graphql_proxy.");
     strcat(sql_alter, table_name);
     strcat(sql_alter, " ADD CONSTRAINT fk_");
