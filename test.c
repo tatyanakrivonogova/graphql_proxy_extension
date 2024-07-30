@@ -139,6 +139,14 @@ int main(int argc, char* argv[]) {
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":123,\"name\":\"Tim\"}] } }");
 
+    // Delete mutation by id. Return ok 200 with null-data
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  deletePerson(id: 123) {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
+
+    // Query person by id. Return empty result
+    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\":  } }");
+
     printf("All tests was executed. OK: %ld FAIL: %ld\n", ok, fail);
     return 0;
 }

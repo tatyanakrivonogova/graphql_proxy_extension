@@ -3,3 +3,5 @@ getPerson='SELECT json_agg("sub/1") AS Person FROM graphql_proxy.Person, LATERAL
 createPerson='INSERT INTO graphql_proxy.Person(id, name) VALUES(%d, %s);';
 
 updatePerson='UPDATE graphql_proxy.Person SET name = %s WHERE id = %d;';
+
+deletePerson='DELETE FROM graphql_proxy.Person WHERE id = %d;';
