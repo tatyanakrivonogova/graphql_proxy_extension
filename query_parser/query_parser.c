@@ -146,22 +146,36 @@ char* make_sql_query(struct Selections* selections) {
     int max_depth_index = find_deepest(selections);
     form_query_begin(query, max_depth_index, selections);
     elog(LOG, "make query begin: %s", query);
+    form_layer_query(query, selections, max_depth_index);
     for (size_t i = count - 2; i >= 0; i--) {
         max_depth_index = find_deepest(selections);
         if (max_depth_index == 0) {
             return query;
         }
-
+        // form_layer_query(query, selections, max_depth_index);
     }
     return query;
 }
 
-char* form_layer_query(struct Selections* selections, int layer_index) {
+void form_layer_query(char* query, struct Selections* selections, int layer_index) {
+    strcat(query, "LATERAL (\n");
+    char* table_name = (char *)malloc(sizeof(char) * NAME_LENGTH);
+    // 1 - dot size
+    char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2 + 1));
+    sprintf(table_name, "%s", selections->selections[layer_index]->name);
+    strcat(query, "SELECT");
     int depth = selections->selections[layer_index]->depth;
-    while (selections->selections[layer_index]->depth == depth) {
-
-        layer_index--;
+    int cur_index = layer_index - 1;
+    while (selections->selections[cur_index]->depth == depth) {
+        sprintf(tmp, ", %s.%s", table_name, selections->selections[cur_index]->name);
+        strcat(query, tmp);
+        --cur_index;
+        // elog(LOG, "query: %s", query);
+        elog(LOG, " %s", tmp);
+        memset(tmp, 0, sizeof(tmp));
     }
+    strcat(query, "\n)");
+    elog(LOG, "query: %s", query);
 }
 
 void form_query_begin(char* query, int max_depth_index, struct Selections* selections) {
@@ -171,7 +185,7 @@ void form_query_begin(char* query, int max_depth_index, struct Selections* selec
     sprintf(str, "SELECT json_agg(\"sub/%d\")", max_depth);
     strcat(query, str);
     memset(str, 0, sizeof(str));
-    sprintf(str, " FROM %s\n", selections->selections[max_depth_index]->name);
+    sprintf(str, " FROM %s,\n", selections->selections[max_depth_index]->name);
     strcat(query, str);
     free(str);
 }
