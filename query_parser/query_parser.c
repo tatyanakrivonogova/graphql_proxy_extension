@@ -166,12 +166,11 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
     // 1 - dot size
     char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2 + 1));
     sprintf(table_name, "%s", selections->selections[layer_index]->name);
-    strcat(query, "SELECT");
+    strcat(query, "\t\tSELECT");
     int depth = selections->selections[layer_index]->depth;
     disable_selection(selections, layer_index);
     int cur_index = layer_index - 1;
-    bool run = true;
-    while (selections->selections[cur_index]->depth == depth) {
+    while (cur_index >= 0) {
         if (cur_index == layer_index - 1) {
             sprintf(tmp, " %s.%s", table_name, selections->selections[cur_index]->name);
         }
@@ -183,24 +182,29 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
         elog(LOG, "%s", tmp);
         memset(tmp, 0, sizeof(tmp));
         disable_selection(selections, cur_index);
-        run = get_next_selection_index(selections, &cur_index, depth);
+        cur_index = get_next_selection_index(selections, cur_index, depth);
     }
-    sprintf(tmp, " FROM %s\n) AS \"sub/%d\",\n", table_name, itteration);
+    sprintf(tmp, " FROM %s\n) AS \"sub/%d\",", table_name, itteration);
     strcat(query, tmp);
     elog(LOG, "query: %s", query);
     free(tmp);
 }
 
-int get_next_selection_index(struct Selections* selections, int* cur_index, int depth) {
+int get_next_selection_index(struct Selections* selections, int cur_index, int depth) {
     while (1) {
-        *cur_index = *cur_index - 1;
-        struct Selection* selection = selections->selections[*cur_index];
+        cur_index -= 1;
+        elog(LOG, "cur_index in while: %d", cur_index);
+        if (cur_index < 0) {
+            elog(LOG, "cur_index is negative, return");
+            return cur_index;
+        }
+        struct Selection* selection = selections->selections[cur_index];
         if (selection->depth == depth) {
-            return 1;
+            elog(LOG, "cur_index to return: %d", cur_index);
+            return cur_index;
         } else if (is_disable_selection(selection)) {
+            elog(LOG, "cur_index continue: %d", cur_index);
             continue;
-        } else if (*cur_index == 0) {
-            return 0;
         }
     }
 }
