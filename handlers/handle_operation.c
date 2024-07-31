@@ -17,21 +17,16 @@ void free_arg_values(ArgValues *argValues) {
     }
 }
 
-char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues *argValues, int *server_error) {
+char **get_param_values(hashmap *resolvers, char *operation_name, ArgValues *argValues, 
+        size_t *param_number, int *server_error) {
+    char **param_values;
     uintptr_t res;
-    char *format_query;
-    char *query;
     size_t argumentsNumber;
     Argument **arguments;
     
     // get sql-code
     if (hashmap_get(resolvers, operation_name, strlen(operation_name), &res)) {
-        elog(LOG, "set_arguments_to_query(): sql format_query for %s:\n\t\t%s\n", operation_name, ((Operation *)res)->operationSql);
-        // copy original format_query
-        format_query = (char *)malloc(QUERY_LENGTH);
-        strcpy(format_query, ((Operation *)res)->operationSql);
-        // query for setting argument's values
-        query = (char *)malloc(QUERY_LENGTH);
+        elog(LOG, "get_param_values(): query %s:\n", operation_name);
     } else {
         elog(LOG, "set_arguments_to_query(): sql format_query for %s not found.\n", operation_name);
         *server_error = 1;
@@ -39,7 +34,15 @@ char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues
     }
 
     argumentsNumber = ((Operation *)res)->argumentsNumber;
+    *param_number = argumentsNumber;
     arguments = ((Operation *)res)->arguments;
+
+    param_values = (char **)malloc(sizeof(char *) * argumentsNumber);
+    if (param_values == NULL) {
+        elog(LOG, "get_param_values(): Param values malloc failed\n");
+        *server_error = 1;
+        return NULL;
+    }
 
     for (size_t i = 0; i < argumentsNumber; ++i) {
         Argument *currentArg = arguments[i];
@@ -47,29 +50,28 @@ char *set_arguments_to_query(hashmap *resolvers, char *operation_name, ArgValues
         if (currentArgValue == NULL) {
             if (strlen(currentArg->defaultValue) != 0) {
                 // set default value
-                elog(LOG, "set_arguments_to_query(): set default value\n");
-                set_value(format_query, query, currentArg->defaultValue, currentArg->argType);
+                elog(LOG, "get_param_values(): set default value\n");
+                param_values[i] = currentArg->defaultValue;
             } else if (currentArg->nonNullType) {
-                elog(LOG, "set_arguments_to_query(): NULL value in non-null argument\n");
+                elog(LOG, "get_param_values(): NULL value in non-null argument\n");
                 goto set_arguments_to_query_fail;
             } else {
                 // set NULL value
-                elog(LOG, "set_arguments_to_query(): set NULL value\n");
-                set_value(format_query, query, "NULL", currentArg->argType);
+                elog(LOG, "get_param_values(): set NULL value\n");
+                param_values[i] = "NULL"; //????
             }
         } else {
             // set specified value
-            elog(LOG, "set_arguments_to_query(): set specified value\n");
-            set_value(format_query, query, currentArgValue, currentArg->argType);
+            elog(LOG, "get_param_values(): set specified value\n");
+            param_values[i] = currentArgValue;
         }
-        swap(&format_query, &query);
+        elog(LOG, "get_param_values(): param_values[%ld] = %s\n", i, param_values[i]);
     }
-    swap(&format_query, &query);
-    return query;
+
+    return param_values;
 
 set_arguments_to_query_fail:
-    free(query);
-    free(format_query);
+    free(param_values);
     return NULL;
 }
 
@@ -87,7 +89,10 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
     cJSON *selection_name;
     cJSON *selection_name_value;
     cJSON *selection_arguments;
+
     ArgValues argValues;
+    size_t param_number;
+    char **param_values;
 
     json = cJSON_Parse(json_query);
     if (json == NULL) {
@@ -185,32 +190,26 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
         argValues.argValues[k] = currentArgValue;
     }
 
-    if ((query_for_execution = set_arguments_to_query(resolvers, selection_name_value->valuestring, &argValues, server_error)) == NULL) {
-        elog(LOG, "handle_operation(): Set arguments to query failed\n");
-        goto handle_operation_fail;
-    } else {
-        int index;
-        char *response = NULL;
-        elog(LOG, "handle_operation(): Set arguments to query successfully\n");
-        elog(LOG, "handle_operation(): Query for execution: %s\n", query_for_execution);
-
-        // execute query
-        if (get_conn_index(fd, &index)) {
-            elog(LOG, "handle_operation(): execution...\n");
-            if (exec_query(&conns[index].pg_conn, query_for_execution, &conns[index].pg_res)) {
-                response = handle_query(&conns[index].pg_res, server_error);
-            } else {
-                elog(LOG, "handle_operation(): Query execution failed.");
-                *server_error = 1;
-            }
-        } else {
-            elog(LOG, "handle_operation(): get_conn_index fail\n");
-            *server_error = 1;
-        }
-
+    // get param values for prepared statement
+    param_number = 0;
+    param_values = get_param_values(resolvers, selection_name_value->valuestring, &argValues, &param_number, server_error);
+    if (param_values == NULL) {
         free_arg_values(&argValues);
-        return response;
+        goto handle_operation_fail;
     }
+
+    char *response = NULL;
+
+    // execute query
+    PGresult *result = execute_prepared_statement(pg_conn, selection_name_value->valuestring, 
+            (const char **)param_values, param_number);
+    if (result) {
+        response = handle_query(&result, server_error);
+    }
+
+    free_arg_values(&argValues);
+    free(param_values);
+    return response;
     
 handle_operation_fail:
     elog(LOG, "handle_operation(): handle_operation_fail\n");

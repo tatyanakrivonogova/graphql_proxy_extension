@@ -27,10 +27,34 @@ create_connection(PGconn** pg_conn, char* conn_info) {
 }
 
 void
-close_connection(PGconn** pg_conn, PGresult **pg_res) {
+close_connection(PGresult **pg_res) {
     clearRes(pg_res);
-    PQfinish(*pg_conn);
-    elog(LOG, "close_connection(): Libpq connection closed");
+    // PQfinish(*pg_conn);
+    elog(LOG, "close_connection(): Client connection closed");
+}
+
+PGresult* prepare_statement(PGconn* pg_conn, const char *stmt_name, const char *sql) {
+    PGresult *res = PQprepare(pg_conn, stmt_name, sql, 0, NULL);
+    
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        elog(LOG, "prepare_statement(): Prepare statement failed: %s\n", PQerrorMessage(pg_conn));
+        PQclear(res);
+        return NULL;
+    }
+
+    return res;
+}
+
+PGresult* execute_prepared_statement(PGconn *pg_conn, const char *stmt_name, const char **paramValues, int paramCount) {
+    PGresult *res = PQexecPrepared(pg_conn, stmt_name, paramCount, paramValues, NULL, NULL, 0);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK && PQresultStatus(res) != PGRES_COMMAND_OK) {
+        elog(LOG, "execute_prepare_statment(): Execute prepare statement failed: %s\n", PQerrorMessage(pg_conn));
+        PQclear(res);
+        return NULL;
+    }
+
+    return res;
 }
 
 int

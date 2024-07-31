@@ -11,7 +11,6 @@ reserve_conn_structure(int fd) {
     char *conn_info;
     
     elog(LOG, "reserve_conn_structure(): reserve conn for fd: %d", fd);
-    // print_conns();
 
     res = get_conn_index(fd, &index);
     if (res) {
@@ -35,13 +34,13 @@ reserve_error:
     return 0;
 
 reserve_done:
-    elog(LOG, "reserve_conn_structure(): Connecting to database...\n");
+    // elog(LOG, "reserve_conn_structure(): Connecting to database...\n");
     // to do: params from config
-    conn_info = "dbname=postgres host=localhost port=5432";
-    if (!create_connection(&conns[index].pg_conn, conn_info)) {
-        free_conn_index(fd);
-        goto reserve_error;
-    }
+    // conn_info = "dbname=postgres host=localhost port=5432";
+    // if (!create_connection(&conns[index].pg_conn, conn_info)) {
+    //     free_conn_index(fd);
+    //     goto reserve_error;
+    // }
     return 1;
 }
 
@@ -64,7 +63,7 @@ free_conn_index(int fd) {
     for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (conns[i].fd == fd) {
             conns[i].fd = 0;
-            close_connection(&conns[i].pg_conn, &conns[i].pg_res);
+            close_connection(&conns[i].pg_res);
             return;
         }
     }

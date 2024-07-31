@@ -5,14 +5,14 @@
 #define MAX_MESSAGE_LEN      (10000)
 
 typedef struct conn_info {
-    PGconn *pg_conn;
+    // PGconn *pg_conn;
     PGresult *pg_res;
     int fd;
     unsigned type;
 } conn_info;
 
 extern char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
-extern struct conn_info conns[MAX_CONNECTIONS];
+extern PGconn *pg_conn;
 
 enum {
     ACCEPT,

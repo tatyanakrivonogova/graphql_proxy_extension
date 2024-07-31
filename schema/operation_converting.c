@@ -25,7 +25,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
         if (operation_field_name_value != NULL && (cJSON_IsString(operation_field_name_value) && (operation_field_name_value->valuestring != NULL))) {
             operation = (Operation*)malloc(sizeof(Operation));
             if (operation == NULL) {
-                elog(LOG, "operation struct malloc failed\n");
+                elog(LOG, "operation_convert(): operation struct malloc failed\n");
                 goto parse_next_operation;
             }
             strcpy(operation->operationName, operation_field_name_value->valuestring);
@@ -50,7 +50,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                 // create struct for new argument
                 currentArg = (Argument*)malloc(sizeof(Argument));
                 if (currentArg == NULL) {
-                    elog(LOG, "Argument malloc failed. Operation is invalid. Free operation\n");
+                    elog(LOG, "operation_convert(): Argument malloc failed. Operation is invalid. Free operation\n");
                     free_arguments(operation);
                     free(operation);
                     goto parse_next_operation;
@@ -62,7 +62,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                 if (argument_name_value != NULL && (cJSON_IsString(argument_name_value)) && (argument_name_value->valuestring != NULL)) {
                     strcpy(currentArg->argName, argument_name_value->valuestring);
                 } else {
-                    elog(LOG, "Parse operation's name failed. Operation is invalid. Free operation\n");
+                    elog(LOG, "operation_convert(): Parse operation's name failed. Operation is invalid. Free operation\n");
                     free_arguments(operation);
                     free(operation);
                     goto parse_next_operation;
@@ -78,7 +78,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                         currentArg->nonNullType = false;
                     }
                 } else {
-                    elog(LOG, "Parse operation's kind failed. Operation is invalid. Free operation\n");
+                    elog(LOG, "operation_convert(): Parse operation's kind failed. Operation is invalid. Free operation\n");
                     free_arguments(operation);
                     free(operation);
                     goto parse_next_operation;
@@ -97,7 +97,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                         converted_type = get_config_value(argument_type_type_name_value->valuestring, configEntries, numEntries);
                         strcpy(currentArg->argType, converted_type);
                     } else {
-                        elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
+                        elog(LOG, "operation_convert(): Parse operation's type failed. Operation is invalid. Free operation\n");
                         free_arguments(operation);
                         free(operation);
                         goto parse_next_operation;
@@ -111,7 +111,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                         converted_type = get_config_value(argument_type_name_value->valuestring, configEntries, numEntries);
                         strcpy(currentArg->argType, converted_type);
                     } else {
-                        elog(LOG, "Parse operation's type failed. Operation is invalid. Free operation\n");
+                        elog(LOG, "operation_convert(): Parse operation's type failed. Operation is invalid. Free operation\n");
                         free_arguments(operation);
                         free(operation);
                         goto parse_next_operation;
@@ -123,14 +123,14 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                 argument_defaultValue_value = cJSON_GetObjectItemCaseSensitive(argument_defaultValue, "value");
                 if (argument_defaultValue_value != NULL && (cJSON_IsString(argument_defaultValue_value)) 
                         && (argument_defaultValue_value->valuestring != NULL)) {
-                    elog(LOG, "default value is found\n");
+                    elog(LOG, "operation_convert(): default value is found\n");
                     strcpy(currentArg->defaultValue, argument_defaultValue_value->valuestring);
                 } else {
-                    elog(LOG, "default value is not set\n");
+                    elog(LOG, "operation_convert(): default value is not set\n");
                     currentArg->defaultValue[0] = '\0';
                 }
 
-                elog(LOG, "argument[%ld] name: %s, type: %s, nonNull: %d, defaultValue: %s\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType, currentArg->defaultValue);
+                elog(LOG, "operation_convert(): argument[%ld] name: %s, type: %s, nonNull: %d, defaultValue: %s\n", k, currentArg->argName, currentArg->argType, currentArg->nonNullType, currentArg->defaultValue);
                 // add argument into operation struct
                 operation->arguments[k] = currentArg;
             }            
@@ -139,19 +139,34 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
             elog(LOG, "operation_convert(): load function body from %s\n", resolvers_filaname);
             operation_body = load_function_body(operation_field_name_value->valuestring, resolvers_filaname);
             if (operation_body != NULL) {
-                elog(LOG, "operation body for %s:\n\t\t%s\n", operation_field_name_value->valuestring, operation_body);
-                operation->operationSql = operation_body;
-                error = hashmap_set(resolvers, strdup(operation_field_name_value->valuestring), strlen(operation_field_name_value->valuestring), (uintptr_t)operation);
-                if (error == -1)
-                    elog(LOG, "hashmap_set error for operation %s: %p\n", operation_field_name_value->valuestring, operation_body);
+                elog(LOG, "operation_convert(): operation body for %s:\n\t\t%s\n", operation_field_name_value->valuestring, operation_body);
+                // prepare stmt
+                PGresult *stmt = prepare_statement(pg_conn, operation_field_name_value->valuestring, operation_body);
+                // save to struct
+                if (stmt == NULL) {
+                    elog(LOG, "operation_convert(): Prepare statement failed\n");
+                    free_arguments(operation);
+                    free(operation);
+                    goto parse_next_operation;
+                } else {
+                    operation->prepared_stmt = stmt;
+                    elog(LOG, "operation_convert(): sql-query for operation %s is prepared\n", operation_field_name_value->valuestring);
+                    error = hashmap_set(resolvers, strdup(operation_field_name_value->valuestring), strlen(operation_field_name_value->valuestring), (uintptr_t)operation);
+                    if (error == -1) {
+                        elog(LOG, "operation_convert(): hashmap_set error for operation %s: %p\n", operation_field_name_value->valuestring, operation_body);
+                        free_arguments(operation);
+                        free(operation);
+                        goto parse_next_operation;
+                    }
+                }
             } else {
-                elog(LOG, "operation %s not found.\n", operation_field_name_value->valuestring);
+                elog(LOG, "operation_convert(): operation %s not found.\n", operation_field_name_value->valuestring);
                 free_arguments(operation);
                 free(operation);
                 goto parse_next_operation;
             }
         }
 parse_next_operation:
-        elog(LOG, "parse next operation\n");
+        elog(LOG, "operation_convert(): parse next operation\n");
     }
 }

@@ -40,6 +40,9 @@ void sigquit_handler(int sig);
 
 ConfigEntry *config;
 size_t num_entries;
+
+PGconn *pg_conn;
+
 hashmap *resolvers;
 int listen_socket = 0;
 const char *json_schema = NULL;
@@ -83,6 +86,7 @@ void shutdown_graphql_proxy_server() {
 
     // close clients sockets and connections to database
     close_conns();
+    PQfinish(pg_conn);
     
     // free config entries
     if (config) {
@@ -194,8 +198,16 @@ graphql_proxy_main(Datum main_arg) {
         ereport(LOG, errmsg("graphql_proxy_main(): File with resolvers is not specified\n"));
         shutdown_graphql_proxy_server();
     }
+
+    char conn_info[256];
+    // create connection to PostgresQL database
+    snprintf(conn_info, 256, "dbname=%s host=%s port=%d", db_name, db_host, db_port);
+    if (!create_connection(&pg_conn, conn_info)) {
+        shutdown_graphql_proxy_server();
+    }
+
     // converting GraphQL schema to PostgresQL schema
-    resolvers = schema_convert(json_schema, file_types_reflection, db_name, db_host, db_port, resolvers_filename);
+    resolvers = schema_convert(json_schema, file_types_reflection, resolvers_filename);
     if (!resolvers) {
         ereport(LOG, errmsg("graphql_proxy_main(): Schema converting failed\n"));
         shutdown_graphql_proxy_server();

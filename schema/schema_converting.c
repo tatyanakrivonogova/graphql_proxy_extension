@@ -8,7 +8,6 @@
 #include "operation_converting.h"
 #include "../defines.h"
 
-
 bool is_type_exists(char* type_name) {
     for (size_t i = 0; i < types.numCreatedTypes; ++i) {
         elog(LOG, "is_type_exists(): %s %s\n", type_name, types.createdTypes[i]);
@@ -45,8 +44,8 @@ void free_alter_queries(char** sql_alter_queries, size_t *sql_alter_queries_num)
     *sql_alter_queries_num = 0;
 }
 
-void exec_drop_schema(PGconn **conn, PGresult **res) {
-    int status = exec_query(conn, "DROP SCHEMA IF EXISTS graphql_proxy CASCADE;", res);
+void exec_drop_schema(PGresult **res) {
+    int status = exec_query(&pg_conn, "DROP SCHEMA IF EXISTS graphql_proxy CASCADE;", res);
     if (status == 0) {
         elog(LOG, "drop_schema(): Drop schema failed\n");
     }
@@ -54,7 +53,7 @@ void exec_drop_schema(PGconn **conn, PGresult **res) {
 }
 
 hashmap *schema_convert(const char *json_schema, const char* file_types_reflection, 
-        char *db_name, char *db_host, int db_port, char *resolvers_filename) {
+        char *resolvers_filename) {
     char *sql_create;
     char *sql_create_schema;
     char *sql_alter_queries[ALTER_QUERIES_NUMBER];
@@ -63,8 +62,6 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     ConfigEntry* configEntries;
     cJSON *json;
     cJSON *definitions;
-    char conn_info[256];
-    PGconn *conn;
     PGresult *res;
     int status;
 
@@ -73,11 +70,6 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 		printf("schema_convert(): failed while hashmap init\n");
 		goto hashmap_create_fail;
 	}
-
-    snprintf(conn_info, 256, "dbname=%s host=%s port=%d", db_name, db_host, db_port);
-    if (!create_connection(&conn, conn_info)) {
-        goto create_connection_fail;
-    }
 
     configEntries = load_config_file(file_types_reflection, &numEntries);
     if (configEntries == NULL) {
@@ -103,7 +95,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     strcpy(sql_create_schema, "DROP SCHEMA IF EXISTS graphql_proxy CASCADE; CREATE SCHEMA graphql_proxy;");
 
     // execute create schema query
-    status = exec_query(&conn, sql_create_schema, &res);
+    status = exec_query(&pg_conn, sql_create_schema, &res);
     if (status == 0) {
         goto exec_create_schema_fail;
     }
@@ -292,14 +284,14 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         elog(LOG, "schema_convert(): sql_create query: %s\n", sql_create);
 
         // execute create table query
-        status = exec_query(&conn, sql_create, &res);
+        status = exec_query(&pg_conn, sql_create, &res);
         if (status == 0) {
             goto exec_create_fail;
         }
         clearRes(&res);
 
         for (size_t i = 0; i < sql_alter_queries_num; ++i) {
-            status = exec_query(&conn, sql_alter_queries[i], &res);
+            status = exec_query(&pg_conn, sql_alter_queries[i], &res);
             if (status == 0) {
                 goto exec_alter_fail;
             }
@@ -315,7 +307,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
     free(sql_create_schema);
     cJSON_Delete(json);
     free_config(configEntries, numEntries);
-    close_connection(&conn, &res);
+    close_connection(&res);
     return resolvers;
 
 
@@ -326,15 +318,14 @@ unsupported_table:
     free_alter_queries(sql_alter_queries, &sql_alter_queries_num);
     free(sql_create);
 sql_create_fail:
-    exec_drop_schema(&conn, &res);
+    exec_drop_schema(&res);
 exec_create_schema_fail:
     free(sql_create_schema);
 sql_create_schema_fail:
     cJSON_Delete(json);
 json_parse_fail:
     free_config(configEntries, numEntries);
-    close_connection(&conn, &res);
-create_connection_fail:
+    close_connection(&res);
 load_config_file_fail:
     free(resolvers);
 hashmap_create_fail:

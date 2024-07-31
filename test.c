@@ -107,43 +107,43 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Query person by id. Return ok 200 with empty response
+    // 1. Query person by id. Return ok 200 with empty response
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\":  } }");
 
-    // Insert mutation. Return ok 200 with null-data
+    // 2. Insert mutation. Return ok 200 with null-data
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123, name: \"Tom\") {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // Insert mutation with default id value. Return ok 200 with null-data
+    // 3. Insert mutation with default id value. Return ok 200 with null-data
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\")\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // Insert mutation with unspecified value for non-null argument. Return error 400
+    // 4. Insert mutation with unspecified value for non-null argument. Return error 400
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\nFailed while parse HTTP resuest. Change and try again\n");
 
-    // Two insert mutations in one operation. Return error 400
+    // 5. Two insert mutations in one operation. Return error 400
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}",
               "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\nFailed while parse HTTP resuest. Change and try again\n");
 
-    // Two insert operations in one request. Return error 400
+    // 6. Two insert operations in one request. Return error 400
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}", 
               "HTTP/1.1 400 Bad Request\nContent-Type: text/plain\n\nFailed while parse HTTP resuest. Change and try again\n");
 
-    // Update mutation. Return ok 200 with null-data
+    // 7. Update mutation. Return ok 200 with null-data
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  updatePerson(id: 123, name: \"Tim\") {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // Query person by id. Return ok 200 with inserted and updated row
+    // 8. Query person by id. Return ok 200 with inserted and updated row
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":123,\"name\":\"Tim\"}] } }");
 
-    // Delete mutation by id. Return ok 200 with null-data
+    // 9. Delete mutation by id. Return ok 200 with null-data
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  deletePerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // Query person by id. Return empty result
+    // 10. Query person by id. Return empty result
     check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\":  } }");
 
