@@ -56,7 +56,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
     err = phr_parse_request(buffer, request_len, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
     if (err == -1 || err == -2) {
         elog(LOG, "parse_input(): PArse request failed\n");
-        create_response_400(buffer, output_size);
+        create_bad_request_response(buffer, output_size);
         return;
     }
 
@@ -78,7 +78,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
     if (check_http_request(parsed_method, method_len, parsed_path, 
                        path_len, minor_version) == -1) {
         elog(LOG, "parse_input(): HTTP-request is not supported\n");
-        create_response_400(buffer, output_size);
+        create_bad_request_response(buffer, output_size);
         goto unsupported_request;
     }
         
@@ -118,14 +118,14 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
         if (!AST) {
             printf("parse_input(): Parsing query to AST failed with error: %s\n", error);
             free((void *)error);
-            create_response_500(buffer, output_size);
+            create_server_error_response(buffer, output_size);
             goto free_memory;
         }
 
         json_query = graphql_ast_to_json((const struct GraphQLAstNode *)AST);
         if (!json_query) {
             printf("parse_input(): Parsing query to json failed\n");
-            create_response_500(buffer, output_size);
+            create_server_error_response(buffer, output_size);
             graphql_node_free(AST);
             goto free_memory;
         }
@@ -137,15 +137,15 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
         // copy response for sending
         if (response != NULL) {
             elog(LOG, "parse_input(): response_len: %ld response: %s\n", strlen(response), response);
-            create_response_200(buffer, response, strlen(response), output_size);
+            create_data_response(buffer, response, strlen(response), output_size);
             free(response);
             response = NULL;
         } else {
             // send error
             if (server_error == 1) {
-                create_response_500(buffer, output_size);
+                create_server_error_response(buffer, output_size);
             } else {
-                create_response_400(buffer, output_size);
+                create_bad_request_response(buffer, output_size);
             }
             response = NULL;
         }
@@ -155,7 +155,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
 
     } else {
         // send http ok for empty request
-        create_response_200(buffer, "", 0, output_size);
+        create_data_response(buffer, "", 0, output_size);
         response = NULL;
     }
 
