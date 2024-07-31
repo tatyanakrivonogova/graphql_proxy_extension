@@ -33,7 +33,7 @@ typedef struct Selection{
 
 typedef struct Selections{
     size_t count;
-    struct Selection selections[MAX_SELECTIONS];
+    struct Selection *selections[MAX_SELECTIONS];
 } Selections;
 
 #endif

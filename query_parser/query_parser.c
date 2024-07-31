@@ -51,6 +51,8 @@ char* handle_operation_query(const char *json_query, int fd) {
         }
         struct ArgValues args;
         struct Selections *selections = (struct Selection*)malloc(sizeof(struct Selection));
+        memset(selections, 0, sizeof(selections));
+        elog(LOG, "selection size: %d", sizeof(struct Selections));
         selections->count = 0;
         selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
         int depth = 0;
@@ -75,36 +77,36 @@ void parse_selection_set(struct Selections* selections, cJSON *selection_set, in
         cJSON *selection_arguments;
 
         selection_json = cJSON_GetArrayItem(selections_json, j);
-        struct Selection selection = parse_selection(selection_json, selections, depth);
-        add_selection_struct(selections, &selection);
+        struct Selection* selection = parse_selection(selection_json, selections, depth);
+        add_selection_struct(selections, selection);
         log_stack(selections);
     }
     
 }
 
-struct Selection parse_selection(cJSON *selection, struct Selections* selections, int depth) {
-    struct Selection result;
+struct Selection* parse_selection(cJSON *selection, struct Selections* selections, int depth) {
+    struct Selection* result = (struct Selection *)malloc(sizeof(struct Selection));
     cJSON* tmp = cJSON_GetObjectItemCaseSensitive(selection, "name");
     cJSON* name = cJSON_GetObjectItemCaseSensitive(tmp, "value");
     cJSON* arguments = cJSON_GetObjectItemCaseSensitive(selection, "arguments");
-    strcpy(result.name, name->valuestring);
-    result.argCount = cJSON_GetArraySize(arguments);
-    for (int i = 0; i < result.argCount; i++) {
+    strcpy(result->name, name->valuestring);
+    result->argCount = cJSON_GetArraySize(arguments);
+    for (int i = 0; i < result->argCount; i++) {
         tmp = cJSON_GetArrayItem(arguments, i);
         cJSON* tmp_name = cJSON_GetObjectItemCaseSensitive(tmp, "name");
         cJSON* argument_name = cJSON_GetObjectItemCaseSensitive(tmp_name, "value");
-        strcpy(result.argName, argument_name->valuestring);
+        strcpy(result->argName, argument_name->valuestring);
         tmp_name = cJSON_GetObjectItemCaseSensitive(tmp, "value");
         cJSON* argument_value = cJSON_GetObjectItemCaseSensitive(tmp_name, "value");
-        strcpy(result.argValue, argument_value->valuestring);
+        strcpy(result->argValue, argument_value->valuestring);
     }
-    result.depth = depth;
+    result->depth = depth;
     cJSON* selection_set = cJSON_GetObjectItemCaseSensitive(selection, "selectionSet");
     int size = cJSON_GetArraySize(selection_set);
     if (size == 0) {
-        elog(LOG, "selection set is null, selection name: %s, size: %d", result.name, size);
+        elog(LOG, "selection set is null, selection name: %s, size: %d", result->name, size);
     } else {
-        elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result.name, size);
+        elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result->name, size);
         parse_selection_set(selections, selection_set, depth + 1);
     }
 
@@ -112,37 +114,23 @@ struct Selection parse_selection(cJSON *selection, struct Selections* selections
     // add_selection(selections, name->valuestring, arg_name, arg_value, args_count, depth);
 }
 
-void add_selection(struct Selections* selections, char* name, char* arg_name, char* arg_value, int arg_count, int depth) {
-    size_t count = selections->count;
-    strcpy(selections->selections[count].name, name);
-    strcpy(selections->selections[count].argName, arg_name);
-    strcpy(selections->selections[count].argValue, arg_value);
-    selections->selections[count].argCount = arg_count;
-    selections->selections[count].depth = depth;
-    selections->count += 1;
-}
-
 void add_selection_struct(Selections *selections, Selection *selection) {
-
+    // log_stack(selections);
+    elog(LOG, "add selection struct");
     size_t count = selections->count;
-    strcpy(selections->selections[count].name, selection->name);
-    strcpy(selections->selections[count].argName, selection->argName);
-    strcpy(selections->selections[count].argValue, selection->argValue);
-    selections->selections[count].argCount = selection->argCount;
-    selections->selections[count].depth = selection->depth;
-    selections->selections[count].is_selection_set = selection->is_selection_set;
+    selections->selections[count] = selection;
     selections->count += 1;
     elog(LOG, "selection %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
-            999, selections->selections[count].name, selections->selections[count].argCount, selections->selections[count].argCount,
-            selections->selections[count].argValue, selections->selections[count].depth, selections->selections[count].is_selection_set);
+            999, selections->selections[count]->name, selections->selections[count]->argCount, selections->selections[count]->argCount,
+            selections->selections[count]->argValue, selections->selections[count]->depth, selections->selections[count]->is_selection_set);
 }
 
 void log_stack(Selections *selections) {
     int count = selections->count;
-    elog(LOG, "\nSELECTIONS STACK");
+    elog(LOG, "\nSELECTIONS STACK, size: %d", count);
     for (int i = 0; i < count; i++) {
-        elog(LOG, "selection №%d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
-            count - i - 1, selections->selections[count].name, selections->selections[count].argCount, selections->selections[count].argCount,
-            selections->selections[count].argValue, selections->selections[count].depth, selections->selections[count].is_selection_set);
+        elog(LOG, "selection: %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
+            count - i - 1, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argCount,
+            selections->selections[i]->argValue, selections->selections[i]->depth, selections->selections[i]->is_selection_set);
     }
 }
