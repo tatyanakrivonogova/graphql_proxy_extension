@@ -104,8 +104,10 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
     cJSON* selection_set = cJSON_GetObjectItemCaseSensitive(selection, "selectionSet");
     int size = cJSON_GetArraySize(selection_set);
     if (size == 0) {
+        result->is_selection_set = false;
         elog(LOG, "selection set is null, selection name: %s, size: %d", result->name, size);
     } else {
+        result->is_selection_set = true;
         elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result->name, size);
         parse_selection_set(selections, selection_set, depth + 1);
     }
