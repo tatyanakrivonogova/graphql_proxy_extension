@@ -24,9 +24,9 @@ typedef struct ArgValues{
 
 typedef struct Selection{
     char name[NAME_LENGTH];
-    int argCount;
     char argName[TYPE_LENGTH];
     char argValue[VALUE_LENGTH];
+    int argCount;
     int depth;
     bool is_selection_set;
 } Selection;

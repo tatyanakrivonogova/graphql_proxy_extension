@@ -53,11 +53,10 @@ char* handle_operation_query(const char *json_query, int fd) {
         struct Selections *selections = (struct Selection*)malloc(sizeof(struct Selection));
         memset(selections, 0, sizeof(selections));
         elog(LOG, "selection size: %d", sizeof(struct Selections));
-        selections->count = 0;
         selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
         int depth = 0;
         parse_selection_set(selections, selection_set, depth);
-        // log_stack(&selections);
+        log_stack(selections);
         return "SELECT * from book;";
 handle_operation_fail:
         elog(LOG, "handle_operation_fail\n");
@@ -79,13 +78,14 @@ void parse_selection_set(struct Selections* selections, cJSON *selection_set, in
         selection_json = cJSON_GetArrayItem(selections_json, j);
         struct Selection* selection = parse_selection(selection_json, selections, depth);
         add_selection_struct(selections, selection);
-        log_stack(selections);
     }
-    
+    log_stack(selections);
+    return;
 }
 
 struct Selection* parse_selection(cJSON *selection, struct Selections* selections, int depth) {
     struct Selection* result = (struct Selection *)malloc(sizeof(struct Selection));
+    memset(result, 0, sizeof(result));
     cJSON* tmp = cJSON_GetObjectItemCaseSensitive(selection, "name");
     cJSON* name = cJSON_GetObjectItemCaseSensitive(tmp, "value");
     cJSON* arguments = cJSON_GetObjectItemCaseSensitive(selection, "arguments");
@@ -95,9 +95,11 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
         tmp = cJSON_GetArrayItem(arguments, i);
         cJSON* tmp_name = cJSON_GetObjectItemCaseSensitive(tmp, "name");
         cJSON* argument_name = cJSON_GetObjectItemCaseSensitive(tmp_name, "value");
+        elog(LOG, "argument_name: %s",argument_name->valuestring);
         strcpy(result->argName, argument_name->valuestring);
         tmp_name = cJSON_GetObjectItemCaseSensitive(tmp, "value");
         cJSON* argument_value = cJSON_GetObjectItemCaseSensitive(tmp_name, "value");
+        elog(LOG, "argument_value: %s",argument_value->valuestring);
         strcpy(result->argValue, argument_value->valuestring);
     }
     result->depth = depth;
@@ -129,7 +131,7 @@ void log_stack(Selections *selections) {
     elog(LOG, "\nSELECTIONS STACK, size: %d", count);
     for (int i = count - 1; i > 0; i--) {
         elog(LOG, "selection: %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
-            i, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argCount,
+            i, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argName,
             selections->selections[i]->argValue, selections->selections[i]->depth, selections->selections[i]->is_selection_set);
     }
 }
