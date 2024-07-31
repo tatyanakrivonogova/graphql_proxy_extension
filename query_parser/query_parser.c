@@ -142,41 +142,69 @@ char* make_sql_query(struct Selections* selections) {
     char* query = (char *)malloc(sizeof(char) * 1024);
     memset(query, 0, sizeof(query));
     size_t count = selections->count;
-    //todo: selections->selections[count - 1] - operation name
-    int max_depth_index = find_deepest(selections);
+    int max_depth_index = get_deepest(selections);
     form_query_begin(query, max_depth_index, selections);
     elog(LOG, "make query begin: %s", query);
-    form_layer_query(query, selections, max_depth_index);
-    for (size_t i = count - 2; i >= 0; i--) {
-        max_depth_index = find_deepest(selections);
+    // form_layer_query(query, selections, max_depth_index);
+    //todo: selections->selections[count - 1] - main table name
+    int i = 1;
+    while (max_depth_index > 0) {
+        max_depth_index = get_deepest(selections);
         if (max_depth_index == 0) {
             return query;
         }
-        // form_layer_query(query, selections, max_depth_index);
+        form_layer_query(query, selections, max_depth_index, i);
+        i++;
     }
+    elog(LOG, "query: \n%s", query);
     return query;
 }
 
-void form_layer_query(char* query, struct Selections* selections, int layer_index) {
-    strcat(query, "LATERAL (\n");
+void form_layer_query(char* query, struct Selections* selections, int layer_index, int itteration) {
+    strcat(query, "\n\tLATERAL (\n");
     char* table_name = (char *)malloc(sizeof(char) * NAME_LENGTH);
     // 1 - dot size
     char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2 + 1));
     sprintf(table_name, "%s", selections->selections[layer_index]->name);
     strcat(query, "SELECT");
     int depth = selections->selections[layer_index]->depth;
+    disable_selection(selections, layer_index);
     int cur_index = layer_index - 1;
+    bool run = true;
     while (selections->selections[cur_index]->depth == depth) {
-        sprintf(tmp, ", %s.%s", table_name, selections->selections[cur_index]->name);
+        if (cur_index == layer_index - 1) {
+            sprintf(tmp, " %s.%s", table_name, selections->selections[cur_index]->name);
+        }
+        else {
+            sprintf(tmp, ", %s.%s", table_name, selections->selections[cur_index]->name);
+        }
         strcat(query, tmp);
-        --cur_index;
         // elog(LOG, "query: %s", query);
-        elog(LOG, " %s", tmp);
+        elog(LOG, "%s", tmp);
         memset(tmp, 0, sizeof(tmp));
+        disable_selection(selections, cur_index);
+        run = get_next_selection_index(selections, &cur_index, depth);
     }
-    strcat(query, "\n)");
+    sprintf(tmp, " FROM %s\n) AS \"sub/%d\",\n", table_name, itteration);
+    strcat(query, tmp);
     elog(LOG, "query: %s", query);
+    free(tmp);
 }
+
+int get_next_selection_index(struct Selections* selections, int* cur_index, int depth) {
+    while (1) {
+        *cur_index = *cur_index - 1;
+        struct Selection* selection = selections->selections[*cur_index];
+        if (selection->depth == depth) {
+            return 1;
+        } else if (is_disable_selection(selection)) {
+            continue;
+        } else if (*cur_index == 0) {
+            return 0;
+        }
+    }
+}
+
 
 void form_query_begin(char* query, int max_depth_index, struct Selections* selections) {
     // 10 - max int numbers count = 2 147 483 647
@@ -185,12 +213,28 @@ void form_query_begin(char* query, int max_depth_index, struct Selections* selec
     sprintf(str, "SELECT json_agg(\"sub/%d\")", max_depth);
     strcat(query, str);
     memset(str, 0, sizeof(str));
-    sprintf(str, " FROM %s,\n", selections->selections[max_depth_index]->name);
+    sprintf(str, " FROM %s,", selections->selections[selections->count - 1]->name);
     strcat(query, str);
     free(str);
 }
 
-int find_deepest(struct Selections* selections) {
+int find_less_deepest(struct Selections* selections, int prev_deep) {
+
+}
+
+void disable_selection(struct Selections* selections, int index) {
+    selections->selections[index]->depth = 0;
+}
+
+int is_disable_selection(struct Selection* selection) {
+    if (selection->depth == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int get_deepest(struct Selections* selections) {
     int max_depth_index = 0;
     size_t max_depth = 0;
     for (int i = selections->count - 1; i >= 0; i--) {
