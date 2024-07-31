@@ -108,6 +108,7 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
         elog(LOG, "selection set is null, selection name: %s, size: %d", result->name, size);
     } else {
         result->is_selection_set = true;
+        result->depth += 1;
         elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result->name, size);
         parse_selection_set(selections, selection_set, depth + 1);
     }
@@ -117,22 +118,18 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
 }
 
 void add_selection_struct(Selections *selections, Selection *selection) {
-    // log_stack(selections);
     elog(LOG, "add selection struct");
     size_t count = selections->count;
     selections->selections[count] = selection;
     selections->count += 1;
-    elog(LOG, "selection %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
-            999, selections->selections[count]->name, selections->selections[count]->argCount, selections->selections[count]->argCount,
-            selections->selections[count]->argValue, selections->selections[count]->depth, selections->selections[count]->is_selection_set);
 }
 
 void log_stack(Selections *selections) {
     int count = selections->count;
     elog(LOG, "\nSELECTIONS STACK, size: %d", count);
-    for (int i = 0; i < count; i++) {
+    for (int i = count - 1; i > 0; i--) {
         elog(LOG, "selection: %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
-            count - i - 1, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argCount,
+            i, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argCount,
             selections->selections[i]->argValue, selections->selections[i]->depth, selections->selections[i]->is_selection_set);
     }
 }
