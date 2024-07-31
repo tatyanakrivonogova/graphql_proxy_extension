@@ -184,10 +184,19 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
         disable_selection(selections, cur_index);
         cur_index = get_next_selection_index(selections, cur_index, depth);
     }
-    sprintf(tmp, " FROM %s\n) AS \"sub/%d\",", table_name, itteration);
+    sprintf(tmp, " FROM %s\n\t) AS \"sub/%d\"", table_name, itteration);
     strcat(query, tmp);
+    add_final_symbol(query, depth);
     elog(LOG, "query: %s", query);
     free(tmp);
+}
+
+void add_final_symbol(char* query, int depth) {;
+    if (depth == 1) {
+        strcat(query, ";");
+    } else {
+        strcat(query, ",");
+    }
 }
 
 int get_next_selection_index(struct Selections* selections, int cur_index, int depth) {

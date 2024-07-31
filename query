@@ -23,15 +23,17 @@ Accept-Language: ru,en;q=0.9
 Connection: keep-alive
 Content-Length: 104
 Host: localhost:8080
-Origin: http://localhost:8080 
+Origin: http://localhost:8080
 Referer: http://localhost:8080/
 Accept: application/json, multipart/mixed
 Content-type: application/json
 
 query {
   Person(id: 8) {
+    id,
     name,
     book {
+      id,
       author,
       title
     },
@@ -208,6 +210,6 @@ LATERAL (
 ) as "sub",
 LATERAL (
   select book.id, book.title, "sub" from book where book.author_id = author.id
-) as "sub/2";
+) as "sub/2",;
 
 
