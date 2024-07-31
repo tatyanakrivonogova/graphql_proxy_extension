@@ -6,3 +6,6 @@
 #define DEFAULT_DB_PORT         (5432)
 
 #define QUERY_LENGTH 256
+
+#define MAX_CONNECTIONS      (20)
+#define MAX_MESSAGE_LEN      (10000)

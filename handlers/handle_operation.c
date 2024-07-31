@@ -28,7 +28,7 @@ char **get_param_values(hashmap *resolvers, char *operation_name, ArgValues *arg
     if (hashmap_get(resolvers, operation_name, strlen(operation_name), &res)) {
         elog(LOG, "get_param_values(): query %s:\n", operation_name);
     } else {
-        elog(LOG, "set_arguments_to_query(): sql format_query for %s not found.\n", operation_name);
+        elog(LOG, "get_param_values(): sql format_query for %s not found.\n", operation_name);
         *server_error = 1;
         return NULL;
     }

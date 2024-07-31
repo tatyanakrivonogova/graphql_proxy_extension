@@ -8,14 +8,12 @@ int
 reserve_conn_structure(int fd) {
     int res;
     int index;
-    char *conn_info;
     
     elog(LOG, "reserve_conn_structure(): reserve conn for fd: %d", fd);
 
     res = get_conn_index(fd, &index);
     if (res) {
         elog(LOG, "reserve_conn_structure(): index for fd: %d is reserved - %d", fd, res);
-        // goto reserve_done;
         return 1;
     }
 
@@ -25,23 +23,12 @@ reserve_conn_structure(int fd) {
             conns[i].fd = fd;
             index = i;
             elog(LOG, "reserve_conn_structure(): reserved index: %d", i);
-            goto reserve_done;
+            return 1;
         }
     }
     elog(LOG, "reserve_conn_structure(): no free conns");
-reserve_error:
     elog(LOG, "reserve_conn_structure(): can not reserve conn structure");
     return 0;
-
-reserve_done:
-    // elog(LOG, "reserve_conn_structure(): Connecting to database...\n");
-    // to do: params from config
-    // conn_info = "dbname=postgres host=localhost port=5432";
-    // if (!create_connection(&conns[index].pg_conn, conn_info)) {
-    //     free_conn_index(fd);
-    //     goto reserve_error;
-    // }
-    return 1;
 }
 
 int

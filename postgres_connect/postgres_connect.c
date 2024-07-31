@@ -29,7 +29,6 @@ create_connection(PGconn** pg_conn, char* conn_info) {
 void
 close_connection(PGresult **pg_res) {
     clearRes(pg_res);
-    // PQfinish(*pg_conn);
     elog(LOG, "close_connection(): Client connection closed");
 }
 

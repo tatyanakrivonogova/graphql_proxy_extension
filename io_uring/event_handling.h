@@ -1,8 +1,6 @@
 #include <liburing.h>
 #include "postgresql/libpq-fe.h"
-
-#define MAX_CONNECTIONS      (20)
-#define MAX_MESSAGE_LEN      (10000)
+#include "../defines.h"
 
 typedef struct conn_info {
     // PGconn *pg_conn;
@@ -12,6 +10,7 @@ typedef struct conn_info {
 } conn_info;
 
 extern char bufs[MAX_CONNECTIONS][MAX_MESSAGE_LEN];
+extern struct conn_info conns[MAX_CONNECTIONS];
 extern PGconn *pg_conn;
 
 enum {

@@ -1,3 +1,4 @@
+#include "defines.h"
 
 int
 reserve_conn_structure(int fd);
