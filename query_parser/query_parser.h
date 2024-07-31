@@ -7,3 +7,4 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
 void parse_selection_set(struct Selections* selections, cJSON *selection_set, int depth);
 void add_selection_struct(struct Selections* selections, struct Selection* selection);
 void log_stack(struct Selections* selections);
+char* make_sql_query(struct Selections* selections);

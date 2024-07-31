@@ -57,6 +57,8 @@ char* handle_operation_query(const char *json_query, int fd) {
         int depth = 0;
         parse_selection_set(selections, selection_set, depth);
         log_stack(selections);
+        response = make_sql_query(selections);
+        elog(LOG, "sql query: %s", response);
         return "SELECT * from book;";
 handle_operation_fail:
         elog(LOG, "handle_operation_fail\n");
@@ -129,9 +131,59 @@ void add_selection_struct(Selections *selections, Selection *selection) {
 void log_stack(Selections *selections) {
     int count = selections->count;
     elog(LOG, "\nSELECTIONS STACK, size: %d", count);
-    for (int i = count - 1; i > 0; i--) {
+    for (int i = count - 1; i >= 0; i--) {
         elog(LOG, "selection: %d, name: %s, arg_count: %d, arg_name: %s, arg_value: %s, depth: %d, is_select_set: %d",
             i, selections->selections[i]->name, selections->selections[i]->argCount, selections->selections[i]->argName,
             selections->selections[i]->argValue, selections->selections[i]->depth, selections->selections[i]->is_selection_set);
     }
+}
+
+char* make_sql_query(struct Selections* selections) {
+    char* query = (char *)malloc(sizeof(char) * 1024);
+    memset(query, 0, sizeof(query));
+    size_t count = selections->count;
+    //todo: selections->selections[count - 1] - operation name
+    int max_depth_index = find_deepest(selections);
+    form_query_begin(query, max_depth_index, selections);
+    elog(LOG, "make query begin: %s", query);
+    for (size_t i = count - 2; i >= 0; i--) {
+        max_depth_index = find_deepest(selections);
+        if (max_depth_index == 0) {
+            return query;
+        }
+
+    }
+    return query;
+}
+
+char* form_layer_query(struct Selections* selections, int layer_index) {
+    int depth = selections->selections[layer_index]->depth;
+    while (selections->selections[layer_index]->depth == depth) {
+
+        layer_index--;
+    }
+}
+
+void form_query_begin(char* query, int max_depth_index, struct Selections* selections) {
+    // 10 - max int numbers count = 2 147 483 647
+    int max_depth = selections->selections[max_depth_index]->depth;
+    char* str = (char *)malloc(sizeof(char) * (sizeof("SELECT json_agg(\"sub/\")") + 10));
+    sprintf(str, "SELECT json_agg(\"sub/%d\")", max_depth);
+    strcat(query, str);
+    memset(str, 0, sizeof(str));
+    sprintf(str, " FROM %s\n", selections->selections[max_depth_index]->name);
+    strcat(query, str);
+    free(str);
+}
+
+int find_deepest(struct Selections* selections) {
+    int max_depth_index = 0;
+    size_t max_depth = 0;
+    for (int i = selections->count - 1; i >= 0; i--) {
+        if (selections->selections[i]->depth > max_depth) {
+            max_depth = selections->selections[i]->depth;
+            max_depth_index = i;
+        }
+    }
+    return max_depth_index;
 }

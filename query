@@ -162,6 +162,16 @@ select json_agg("sub/2") AS book
       SELECT author.name, "sub/1".title from author where "sub/1".author_id = author.id 
     ) 
 as "sub/2";
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.title, book.author_id 
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1".title from author where "sub/1".author_id = author.id 
+    ) 
+as "sub/2";
+
 
 -------------------------------------------------------------------------
 
