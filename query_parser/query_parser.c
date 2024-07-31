@@ -184,11 +184,22 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
         disable_selection(selections, cur_index);
         cur_index = get_next_selection_index(selections, cur_index, depth);
     }
+    add_previouse_subquery(query, itteration);
     sprintf(tmp, " FROM %s\n\t) AS \"sub/%d\"", table_name, itteration);
     strcat(query, tmp);
     add_final_symbol(query, depth);
     elog(LOG, "query: %s", query);
     free(tmp);
+}
+
+void add_previouse_subquery(char* query, int itteration) {
+    if (itteration == 1) {
+        return;
+    }
+    char* sub = (char *)malloc(sizeof(char) * NAME_LENGTH);
+    sprintf(sub, ", \"sub/%d\"", itteration - 1);
+    strcat(query, sub);
+    free(sub);
 }
 
 void add_final_symbol(char* query, int depth) {;
@@ -217,7 +228,6 @@ int get_next_selection_index(struct Selections* selections, int cur_index, int d
         }
     }
 }
-
 
 void form_query_begin(char* query, int max_depth_index, struct Selections* selections) {
     // 10 - max int numbers count = 2 147 483 647
