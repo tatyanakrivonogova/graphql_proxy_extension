@@ -169,9 +169,9 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
     strcat(query, "\t\tSELECT");
     int depth = selections->selections[layer_index]->depth;
     disable_selection(selections, layer_index);
-    int cur_index = layer_index - 1;
+    int cur_index = layer_index + 1;
     while (cur_index >= 0) {
-        if (cur_index == layer_index - 1) {
+        if (cur_index == layer_index + 1) {
             sprintf(tmp, " %s.%s", table_name, selections->selections[cur_index]->name);
         }
         else {
@@ -184,7 +184,7 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
         disable_selection(selections, cur_index);
         cur_index = get_next_selection_index(selections, cur_index, depth);
     }
-    add_previouse_subquery(query, itteration);
+    add_previous_subquery(query, itteration);
     sprintf(tmp, " FROM %s\n\t) AS \"sub/%d\"", table_name, itteration);
     strcat(query, tmp);
     add_final_symbol(query, depth);
@@ -192,7 +192,7 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
     free(tmp);
 }
 
-void add_previouse_subquery(char* query, int itteration) {
+void add_previous_subquery(char* query, int itteration) {
     if (itteration == 1) {
         return;
     }
@@ -212,7 +212,7 @@ void add_final_symbol(char* query, int depth) {;
 
 int get_next_selection_index(struct Selections* selections, int cur_index, int depth) {
     while (1) {
-        cur_index -= 1;
+        cur_index += 1;
         elog(LOG, "cur_index in while: %d", cur_index);
         if (cur_index < 0) {
             elog(LOG, "cur_index is negative, return");
@@ -260,7 +260,7 @@ int is_disable_selection(struct Selection* selection) {
 int get_deepest(struct Selections* selections) {
     int max_depth_index = 0;
     size_t max_depth = 0;
-    for (int i = selections->count - 1; i >= 0; i--) {
+    for (int i = 0; i < selections->count; i++) {
         if (selections->selections[i]->depth > max_depth) {
             max_depth = selections->selections[i]->depth;
             max_depth_index = i;
