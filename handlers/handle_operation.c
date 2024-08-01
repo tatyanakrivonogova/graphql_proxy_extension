@@ -78,7 +78,6 @@ set_arguments_to_query_fail:
 char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *server_error) {
     cJSON *json;
     cJSON *definitions;
-    char *query_for_execution;
 
     cJSON *definition;
     cJSON *definition_kind;
@@ -93,6 +92,7 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
     ArgValues argValues;
     size_t param_number;
     char **param_values;
+    char *response = NULL;
 
     json = cJSON_Parse(json_query);
     if (json == NULL) {
@@ -197,8 +197,6 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
         free_arg_values(&argValues);
         goto handle_operation_fail;
     }
-
-    char *response = NULL;
 
     // execute query
     PGresult *result = execute_prepared_statement(pg_conn, selection_name_value->valuestring, 

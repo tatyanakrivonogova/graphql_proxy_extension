@@ -128,6 +128,7 @@ graphql_proxy_main(Datum main_arg) {
     struct io_uring ring;
     int cqe_count;
     const int val = 1;
+    char conn_info[256];
 
     struct sockaddr_in client_addr;
     socklen_t client_len;
@@ -199,7 +200,6 @@ graphql_proxy_main(Datum main_arg) {
         shutdown_graphql_proxy_server();
     }
 
-    char conn_info[256];
     // create connection to PostgresQL database
     snprintf(conn_info, 256, "dbname=%s host=%s port=%d", db_name, db_host, db_port);
     if (!create_connection(&pg_conn, conn_info)) {

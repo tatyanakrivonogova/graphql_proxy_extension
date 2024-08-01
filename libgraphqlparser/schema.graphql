@@ -1,26 +1,24 @@
 type Person {
-  id: Int!
-  name: String!
+    id: ID!
+    name: String!
+    age: Int!
 }
 
 type Message {
-  id: Int!
-  msg: String!
-  sender: Person!
-  receiver: Person!
-}
-
-type Stat {
-  stat: [Int]!
+    id: ID!
+    content: String!
+    author: Person!
 }
 
 type Query {
-  getPerson(id: Int! = 9): Person
-  person(id: Int!): Person
+    getPerson(id: ID!): Person
+    getMessage(id: ID!): Message
 }
 
 type Mutation {
-  createPerson(id: Int! = 8, name: String!): Person
-  updatePerson(name: String!, id: Int!): Person
-  deletePerson(id: Int!): Person
+    createPerson(id: ID!, name: String!, age: Int): Person
+    updatePerson(name: String!, age: Int = 0, id: ID!): Person
+    deletePerson(id: ID!): Person
+
+    createMessage(id: ID!, content: String!, author: ID!): Message
 }

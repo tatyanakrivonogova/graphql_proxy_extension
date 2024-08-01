@@ -162,7 +162,7 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
         for (int j = 0; j < cJSON_GetArraySize(fields); ++j)
         {
             cJSON *field;
-            cJSON *kind_field;
+            cJSON *field_kind;
             cJSON *field_name;
             cJSON *field_name_value;
             cJSON *field_type;
@@ -172,9 +172,9 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
 
             strcat(sql_create, ", ");
             field = cJSON_GetArrayItem(fields, j);
-            kind_field = cJSON_GetObjectItemCaseSensitive(field, "kind");
-            if (cJSON_IsString(kind_field) && (kind_field->valuestring != NULL) 
-                && (strcmp(kind_field->valuestring, "FieldDefinition") != 0)) continue;
+            field_kind = cJSON_GetObjectItemCaseSensitive(field, "kind");
+            if (cJSON_IsString(field_kind) && (field_kind->valuestring != NULL) 
+                && (strcmp(field_kind->valuestring, "FieldDefinition") != 0)) continue;
             field_name = cJSON_GetObjectItemCaseSensitive(field, "name");
             field_name_value = cJSON_GetObjectItemCaseSensitive(field_name, "value");
 
@@ -234,11 +234,9 @@ hashmap *schema_convert(const char *json_schema, const char* file_types_reflecti
             {
                 // ListType
                 cJSON *field_type_type_type;
-                // cJSON *field_type_type_type_type;
                 cJSON *field_type_type_type_kind;
 
                 field_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type, "type");
-                // field_type_type_type_type = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "type");
                 field_type_type_type_kind = cJSON_GetObjectItemCaseSensitive(field_type_type_type, "kind");
                 if (field_type_type_type_kind != NULL && (cJSON_IsString(field_type_type_type_kind)) 
                     && (strcmp(field_type_type_type_kind->valuestring, "NamedType") == 0))

@@ -83,7 +83,6 @@ void hashmap_free(hashmap* m)
 int free_key_value(const void* key, size_t ksize, uintptr_t value, void* usr)
 {
 	free((char *)key);
-	PQclear(((Operation *)value)->prepared_stmt);
 	free_arguments((Operation *)value);
 	free((Operation *)value);
 	return 0;

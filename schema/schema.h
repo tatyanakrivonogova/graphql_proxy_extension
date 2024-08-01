@@ -22,8 +22,6 @@ typedef struct {
 // operation = named query or mutation (which is called by its name and arguments)
 typedef struct {
     char operationName[NAME_LENGTH];
-    // char *operationSql;
-    PGresult *prepared_stmt;
     size_t argumentsNumber;
     Argument *arguments[MAX_ARGUMENTS_NUMBER];
     char return_value[NAME_LENGTH];

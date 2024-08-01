@@ -55,7 +55,7 @@ void insert_string(char *buffer, size_t buffer_size, const char *format, const c
 
 int is_same(char *pg_type, char *json_type) {
     if ((strcmp(pg_type, "INT") == 0) && (strcmp(json_type, "IntValue") == 0)) return 0;
-    if ((strcmp(pg_type, "UUID") == 0) && (strcmp(json_type, "IntValue") == 0)) return 0;
+    if ((strcmp(pg_type, "UUID") == 0) && (strcmp(json_type, "StringValue") == 0)) return 0;
     if ((strcmp(pg_type, "TEXT") == 0) && (strcmp(json_type, "StringValue") == 0)) return 0;
     // add boolean and other
     return 1;

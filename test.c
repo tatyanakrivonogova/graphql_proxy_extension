@@ -107,45 +107,38 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // 1. Query person by id. Return empty response
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getPerson(id: \"123\") {\n    id\n    name\n  }\n}", 
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\":  } }");
 
-    // 2. Insert mutation. Return null-data
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123, name: \"Tom\") {\n    id\n    name\n  }\n}",
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getMessage(id: \"1\") {\n    content\n    author {\n        name\n    }\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"message\":  } }");
+
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nmutation {\n  createPerson(id: \"123\", name: \"Tom\", age: 20) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // 3. Insert mutation with default id value. Return null-data
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\")\n}",
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getPerson(id: \"123\") {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":\"123\",\"name\":\"Tom\",\"age\":20}] } }");
+
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nmutation {\n  updatePerson(id: \"123\", name: \"Tim\", age: 21) {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // 4. Insert mutation with unspecified value for non-null argument. Return bad request
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(id: 123) {\n    id\n    name\n  }\n}",
-              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n  \"errors\": [\n    {\n      \"message\": \"Bad request\"\n    }\n  ]\n}\n");
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getPerson(id: \"123\") {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":\"123\",\"name\":\"Tim\",\"age\":21}] } }");
 
-    // 5. Two insert mutations in one operation. Return bad request
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}",
-              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n  \"errors\": [\n    {\n      \"message\": \"Bad request\"\n    }\n  ]\n}\n");
-
-    // 6. Two insert operations in one request. Return bad request
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}\nmutation {\n  createPerson(name: \"Tom\") {\n    id\n    name\n  }\n}", 
-              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n  \"errors\": [\n    {\n      \"message\": \"Bad request\"\n    }\n  ]\n}\n");
-
-    // 7. Update mutation. Return null-data
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  updatePerson(id: 123, name: \"Tim\") {\n    id\n    name\n  }\n}",
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nmutation {\n  deletePerson(id: \"123\") {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
 
-    // 8. Query person by id. Return inserted and updated row
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
-              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\": [{\"id\":123,\"name\":\"Tim\"}] } }");
-
-    // 9. Delete mutation by id. Return null-data
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nmutation {\n  deletePerson(id: 123) {\n    id\n    name\n  }\n}",
-              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
-
-    // 10. Query person by id. Return empty result
-    check(sd, "POST /query HTTP/1.1\nAccept-Encoding: gzip, deflate, br, zstd\nAccept-Language: ru,en;q=0.9\nConnection: keep-alive\nContent-Length: 104\nHost: localhost:8080\nOrigin: http://localhost:8080\nReferer: http://localhost:8080/\nAccept: application/json, multipart/mixed\nContent-type: application/json\n\nquery {\n  getPerson(id: 123) {\n    id\n    name\n  }\n}",
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getPerson(id: \"123\") {\n    id\n    name\n  }\n}",
               "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"person\":  } }");
+
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nmutation {\n  createPerson(id: \"123\", name: \"Tom\", age: 20) {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
+
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nmutation {\n  createMessage(id: \"1\", content: \"message from Tom\", author: \"123\") {\n    id\n    name\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { (null) } }");
+
+    check(sd, "POST /query HTTP/1.1\nContent-type: application/json\n\nquery {\n  getMessage(id: \"1\") {\n    content\n    author {\n        name\n    }\n  }\n}",
+              "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{ \"data\": { \"message\": [{\"id\":\"1\",\"content\":\"message from Tom\"}] } }");
 
     printf("All tests was executed. OK: %ld FAIL: %ld\n", ok, fail);
     return 0;

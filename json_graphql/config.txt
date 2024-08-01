@@ -2,4 +2,4 @@ Int=INT
 Float=FLOAT
 String=TEXT
 Boolean=BOOLEAN
-ID=UUID
+ID=TEXT

@@ -139,9 +139,10 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
             elog(LOG, "operation_convert(): load function body from %s\n", resolvers_filaname);
             operation_body = load_function_body(operation_field_name_value->valuestring, resolvers_filaname);
             if (operation_body != NULL) {
+                PGresult *stmt;
                 elog(LOG, "operation_convert(): operation body for %s:\n\t\t%s\n", operation_field_name_value->valuestring, operation_body);
                 // prepare stmt
-                PGresult *stmt = prepare_statement(pg_conn, operation_field_name_value->valuestring, operation_body);
+                stmt = prepare_statement(pg_conn, operation_field_name_value->valuestring, operation_body);
                 // save to struct
                 if (stmt == NULL) {
                     elog(LOG, "operation_convert(): Prepare statement failed\n");
@@ -149,7 +150,7 @@ void operation_convert(cJSON *definition, hashmap *resolvers,
                     free(operation);
                     goto parse_next_operation;
                 } else {
-                    operation->prepared_stmt = stmt;
+                    PQclear(stmt);
                     elog(LOG, "operation_convert(): sql-query for operation %s is prepared\n", operation_field_name_value->valuestring);
                     error = hashmap_set(resolvers, strdup(operation_field_name_value->valuestring), strlen(operation_field_name_value->valuestring), (uintptr_t)operation);
                     if (error == -1) {
