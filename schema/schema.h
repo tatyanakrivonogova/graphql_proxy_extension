@@ -31,7 +31,7 @@ typedef struct {
 
 
 // types which are already converted to PostgresQL
-typedef struct Types {
+typedef struct Types{
     size_t numCreatedTypes;
     char createdTypes[MAX_TYPES_NUMBER][NAME_LENGTH];
 } Types;

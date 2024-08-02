@@ -10,6 +10,7 @@
 #include "../libgraphqlparser/c/GraphQLAstNode.h"
 #include "../libgraphqlparser/c/GraphQLParser.h"
 #include "../libgraphqlparser/c/GraphQLAstToJSON.h"
+#include "../query_parser/query_parser.h"
 
 #include "postgres.h"
 

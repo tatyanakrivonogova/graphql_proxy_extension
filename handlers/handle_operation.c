@@ -5,11 +5,13 @@
 #include "../postgres_connect/postgres_connect.h"
 #include "../io_uring/multiple_user_access.h"
 #include "../schema/schema.h"
+#include "../query_parser/query_parser.h"
+#include "utils.h"
 #include "defines.h"
 
 #include "postgres.h"
 
-void free_arg_values(ArgValues *argValues) {
+void free_arg_values(struct ArgValues *argValues) {
     if (argValues != NULL) {
         for (size_t i = 0; i < argValues->argNumber; ++i) {
             free(argValues->argValues[i]);
@@ -116,13 +118,19 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
     if (definition_kind != NULL && (cJSON_IsString(definition_kind)) && (definition_kind->valuestring != NULL)
             && (strcmp(definition_kind->valuestring, "OperationDefinition") != 0)) {
         elog(LOG, "handle_operation(): Wrong query kind\n");
+        return NULL;
     }
 
-    definition_operation = cJSON_GetObjectItemCaseSensitive(definition, "operation");
-    if (definition_operation != NULL && (cJSON_IsString(definition_operation)) && (definition_operation->valuestring != NULL)
-            && (strcmp(definition_operation->valuestring, "mutation") != 0) && (strcmp(definition_operation->valuestring, "query") != 0)) {
-        elog(LOG, "handle_operation(): Operation query or mutation expected\n");
-    }
+        definition_operation = cJSON_GetObjectItemCaseSensitive(definition, "operation");
+        if (definition_operation != NULL && (cJSON_IsString(definition_operation)) && (definition_operation->valuestring != NULL)
+                && (strcmp(definition_operation->valuestring, "mutation") != 0) && (strcmp(definition_operation->valuestring, "query") != 0)) {
+            elog(LOG, "handle_operation(): Operation query or mutation expected\n");
+            return NULL;
+        }
+
+        if ((strcmp(definition_operation->valuestring, "query") == 0)) {
+            return handle_operation_query(definition);
+        }
 
     definition_selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
     selections = cJSON_GetObjectItemCaseSensitive(definition_selection_set, "selections");
@@ -150,7 +158,7 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
         cJSON *argument_value_kind;
         cJSON *argument_value_value;
 
-        ArgValue *currentArgValue = (ArgValue *)malloc(sizeof(ArgValue));
+        struct ArgValue *currentArgValue = (struct ArgValue *)malloc(sizeof(struct ArgValue));
         if (currentArgValue == NULL) {
             elog(LOG, "handle_operation(): Argument value malloc failed\n");
             free_arg_values(&argValues);

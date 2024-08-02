@@ -6,3 +6,210 @@ GET /query HTTP/1.0
 Content-Length: 0
 
 INSERT INTO table1 values(9876);
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+query {
+  getPerson(id: 8) {
+    id
+    name
+  }
+}
+
+POST /query HTTP/1.1
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: ru,en;q=0.9
+Connection: keep-alive
+Content-Length: 104
+Host: localhost:8080
+Origin: http://localhost:8080
+Referer: http://localhost:8080/
+Accept: application/json, multipart/mixed
+Content-type: application/json
+
+query {
+  Person(id: 8) {
+    id,
+    name,
+    book {
+      id,
+      author,
+      title
+    },
+    age
+  }
+}
+
+
+
+  getPerson(id: 6) {
+    id,
+    name,
+    book {
+      id,
+      author,
+      title
+    }
+  }
+}
+
+------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  table1 {
+    id
+  }
+$$);
+
+--------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book {
+    id,
+    title
+  }
+$$);
+
+----------------------------------------------------------------------------
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book {
+    id,
+    public_year,
+    title,
+    author {
+      id,
+      name
+    }
+  }
+$$);
+
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  author {
+    name,
+    book {
+      title,
+      id,
+      public_year
+    }
+  }
+$$);
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  author {
+    name,
+    id
+  }
+  book {
+    title,
+    id,
+    public_year
+  }
+$$);
+
+SELECT graphql.to_sql('book', '', '{title, id, public_year}', 'book');
+SELECT graphql.to_sql(book, '', '{title, id, public_year}', author, NULL);
+
+---------------------------------------------------------------------------------
+
+PREDICATE means id
+following query shows out book with id = 1
+
+GET /query HTTP/1.0
+Content-Length: 0
+
+SELECT graphql.run($$
+  book("1") {
+    id,
+    public_year,
+    title
+  }
+$$);
+
+alter table book add constraint fk_book_author foreign key (author_id) references author(id);
+alter table author add constraint fk_author_book foreign key (id) references book(author_id);
+alter table book add constarint fk_book_author foreign key (author) references author(id);
+
+============================================================
+
+PSQL
+
+work:
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.author_id 
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1".title from author where "sub/1".author_id = author.id 
+    ) 
+as "sub/2";
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.title, book.author_id 
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1".title from author where "sub/1".author_id = author.id 
+    ) 
+as "sub/2";
+
+
+-------------------------------------------------------------------------
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1" from author where book.author_id = author.id 
+    ) 
+as "sub/2";
+
+select json_agg("sub/1") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year, book.author_id
+    ) AS "sub/1";
+
+
+select json_agg("sub/2") AS book
+  from book,
+    LATERAL (
+      SELECT book.id, book.title, book.public_year
+    ) AS "sub/1",
+    LATERAL (
+      SELECT author.name, "sub/1" from author where book.author_id = author.id 
+    ) as "sub/2",
+    LATERAL (
+      select * from book;
+    );
+
+select json_agg("sub/2") from author,
+LATERAL (
+  select author.name
+) as "sub",
+LATERAL (
+  select book.id, book.title, "sub" from book where book.author_id = author.id
+) as "sub/2",;
+
+

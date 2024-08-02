@@ -47,7 +47,6 @@ hashmap *resolvers;
 int listen_socket = 0;
 const char *json_schema = NULL;
 
-
 void
 _PG_init(void) {
 	graphql_proxy_start_worker();

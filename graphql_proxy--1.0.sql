@@ -1,4 +1,4 @@
-BEGIN;
+-- BEGIN;
 
 DROP SCHEMA IF EXISTS graphql CASCADE;
 CREATE SCHEMA graphql;
@@ -134,13 +134,16 @@ DECLARE
   n integer = 0;
   q text;
 BEGIN
-  FOR q IN SELECT graphql.to_sql(expr) LOOP
+  RAISE NOTICE 'Run expr: %', expr;
+  FOR q IN SELECT graphql.to_sql1(expr) LOOP
     n := n + 1;
     BEGIN
+      RAISE NOTICE E'query to execute after to_sql: %\n expr: %', q, expr;
       EXECUTE q INTO STRICT intermediate;
     EXCEPTION
       WHEN NO_DATA_FOUND THEN CONTINUE;
     END;
+    RAISE NOTICE 'intermediate result: %', intermediate;
     result := result || intermediate;
   END LOOP;
   --- Maybe there is a better way to approach query cardinality? For example,
@@ -154,13 +157,23 @@ BEGIN
 END
 $$ LANGUAGE plpgsql STABLE STRICT;
 
-CREATE FUNCTION to_sql(expr text)
+CREATE FUNCTION to_sql1(expr text)
 RETURNS TABLE (query text) AS $$
+DECLARE
+  myQuery text = '';
+  parsMany record;
 BEGIN
-  --- query select graphql.to_sql(selector, predicate, body) FROM graphql.parse_many(expr);
-  RAISE NOTICE 'To sql QUERY: %, Expr %', query, expr;
-  RETURN QUERY SELECT graphql.to_sql(selector, predicate, body)
-                 FROM graphql.parse_many(expr);
+  -- myQuery := select graphql.to_sql(selector, predicate, body) FROM graphql.parse_many(expr);
+  -- select graphql.to_sql(selector, predicate, body) into myQuery FROM graphql.parse_many(expr);
+  -- RAISE NOTICE E'TO SQL QUERY: %,\nExpr: %', myQuery, expr;
+  -- RETURN QUERY SELECT graphql.to_sql(selector, predicate, body) FROM graphql.parse_many(expr);
+  FOR parsMany IN SELECT * FROM graphql.parse_many(expr) LOOP
+    myQuery := graphql.to_sql(parsMany.selector, parsMany.predicate, parsMany.body);
+    RAISE NOTICE 'TO_SQL BETWEEN parse_many: %', parsMany;
+  -- RETURN NEXT graphql.to_sql(parsMany.selector, parsMany.predicate, parsMany.body);
+  END LOOP;
+  -- HERE return two values from to_sql, but realy returns only the last one?
+  RETURN QUERY SELECT graphql.to_sql(selector, predicate, body) FROM graphql.parse_many(expr);
 END
 $$ LANGUAGE plpgsql STABLE STRICT;
 
@@ -176,11 +189,13 @@ DECLARE
   cols text[] = ARRAY[]::text[];
   col name;
   sub record;
+  sqlRes text;
   pk text[] = NULL;
   fks graphql.fk[];
   subselects text[] = ARRAY[]::text[];
   predicates text[] = ARRAY[]::text[];
 BEGIN
+  RAISE NOTICE E'start simple upper to_sql\nSelector: %\npredicate: %\nBody: %\nLabel: %', selector, predicate, body, label;
   body := btrim(body, '{}');
   IF predicate IS NOT NULL THEN
     SELECT array_agg(_) INTO STRICT pk
@@ -194,7 +209,7 @@ BEGIN
                || graphql.format_comparison(tab, graphql.pk(tab), pk);
   END IF;
   FOR sub IN SELECT * FROM graphql.parse_many(body) LOOP
-    RAISE NOTICE 'sub: %', sub;
+    RAISE NOTICE E'new sub in select * parse_many: %', sub;
     IF sub.predicate IS NOT NULL THEN
       RAISE EXCEPTION 'Unhandled nested selector %(%)',
                       sub.selector, sub.predicate;
@@ -203,6 +218,7 @@ BEGIN
       FROM graphql.cols(tab) WHERE cols.col = sub.selector;
     CASE
     WHEN FOUND AND sub.body IS NULL THEN           -- A simple column reference
+      RAISE NOTICE 'sub.body is NULL, %', sub.body;
       SELECT array_agg(fk) INTO STRICT fks
         FROM graphql.fk(tab)
        WHERE cardinality(fk.cols) = 1 AND fk.cols[1] = col;
@@ -222,19 +238,29 @@ BEGIN
       END IF;
       RAISE NOTICE 'cols: %', cols;
     WHEN FOUND AND sub.body IS NOT NULL THEN             -- Index into a column
+      RAISE NOTICE 'sub.body in NOT NULL, %', sub.body;
       subselects := subselects || graphql.to_sql(sub.selector,
                                                  sub.predicate,
                                                  sub.body,
                                                  tab);
+      RAISE NOTICE 'FOUND subselects: %', subselects;
       cols := cols || format('%I.%I', 'sub/'||cardinality(subselects), col);
     WHEN NOT FOUND THEN             -- It might be a reference to another table
-      subselects := subselects || graphql.to_sql(regclass(sub.selector),
-                                                 sub.predicate,
-                                                 sub.body,
-                                                 tab,
-                                                 pk);
+      RAISE NOTICE 'NOT FOUND';
+      -- RAISE NOTICE 'subselects before: %', subselects;
+      -- select graphql.to_sql(regclass(sub.selector), sub.predicate, sub.body, tab, pk) into sqlRes;
+      -- RAISE NOTICE E'regclass: %\nSelector: %\nPredicate: %\nBody: %\nTab: %\nPk: %', regclass(sub.selector), sub.selector, sub.predicate, sub.body, tab, pk;
+      -- sqlRes := graphql.to_sql(regclass(sub.selector), sub.predicate, sub.body, tab, pk);
+      -- RAISE NOTICE 'sqlRes: %', sqlRes;
+      -- subselects := sqlRes || subselects;
+      -- subselects := subselects || sqlRes;
+      -- subselects := graphql.to_sql(regclass(sub.selector), sub.predicate, sub.body, tab, pk) || subselects;
+      subselects := subselects || graphql.to_sql(regclass(sub.selector), sub.predicate, sub.body, tab, pk);
+      -- RAISE NOTICE 'subselects after: %', subselects;
+      RAISE NOTICE E'NOT FOUND subselects: %\n cols: %', subselects, cols;                                           
       cols := cols
-           || format('%I.%I', 'sub/'||cardinality(subselects), sub.selector);
+           || format('%I.%I', 'sub/' || cardinality(subselects), sub.selector);
+      RAISE NOTICE E'cols: %', cols;
     ELSE
       RAISE EXCEPTION 'Not able to interpret this selector: %', sub.selector;
     END CASE;
@@ -242,22 +268,28 @@ BEGIN
   DECLARE
     column_expression text;
   BEGIN
+    RAISE NOTICE 'Forming selects, cols: %', cols;
     IF cols > ARRAY[]::text[] THEN
+      RAISE NOTICE 'cols > array[]::text[]';
       --- We want a temporary record type to to pass to json_agg or to_json as
       --- a single parameter so that column names are preserved. So we select
       --- all the columns into a subselect with LATERAL and then reference the
       --- subselect. This subselect should always be the last one in the
       --- sequence, since it needs to reference "columns" created in the other
       --- subselects.
+      RAISE NOTICE 'subselects: %', subselects;
       subselects := subselects
                  || format('SELECT %s', array_to_string(cols, ', '));
-      column_expression := format('%I', 'sub/'||cardinality(subselects));
+      RAISE NOTICE E'subselects: %\ncolumn_expression: %', subselects, column_expression;
+      column_expression := format('%I', 'sub/' || cardinality(subselects));
+      RAISE NOTICE 'column_expression: %', column_expression;
     ELSE
       column_expression := format('%s', tab);
     END IF;
     IF pk IS NOT NULL THEN                             -- Implies single result
       q := 'SELECT to_json('  || column_expression || ')' || q;
     ELSE
+      RAISE NOTICE 'select json_agg(column expression), column_expression: %', column_expression;
       q := 'SELECT json_agg(' || column_expression || ')' || q;
     END IF;
     IF label IS NOT NULL THEN
@@ -267,14 +299,16 @@ BEGIN
     END IF;
   END;
   q := q || format(E'\n  FROM %s', tab);
+  RAISE NOTICE 'Return q value before loop: %', q;
   FOR i IN 1..cardinality(subselects) LOOP
-  RAISE NOTICE 'Return q value in loop: %', q;
+    RAISE NOTICE E'Make sql query, subselects: %\n query: %', subselects, q;
     q := q || array_to_string(ARRAY[
                 ',',
                 graphql.indent(7, 'LATERAL ('), -- 7 to line up with SELECT ...
                 graphql.indent(9, subselects[i]),    -- 9 to be 2 under LATERAL
                 graphql.indent(7, ') AS ' || format('%I', 'sub/'||i))
               ], E'\n');
+  RAISE NOTICE 'Return q value in loop after one parse: %', q;
     --- TODO: Find an "indented text" abstraction so we don't split and
     ---       recombine the same lines so many times.
   END LOOP;
@@ -285,7 +319,7 @@ BEGIN
       q := q || E'\n   AND (' || predicates[i] || ')';
     END IF;
   END LOOP;
-  RAISE NOTICE 'return value of to_sql: %', q;
+  RAISE NOTICE 'to_sql returns: %', q;
   RETURN q;
 END
 $$ LANGUAGE plpgsql STABLE;
@@ -358,6 +392,7 @@ DECLARE
   --- to the table with the actual data.
   okey record;
 BEGIN
+  RAISE NOTICE E'START INER TO_SQL';
   BEGIN
     SELECT * INTO STRICT ikey     -- Find the first foreign key in column order
       FROM graphql.fk(selector) WHERE fk.other = tab LIMIT 1;
@@ -398,6 +433,7 @@ BEGIN
   END IF;
   q := q || E'\n WHERE '
          || graphql.format_comparison(selector, ikey.cols, keys);
+  RAISE NOTICE 'RETURN VALUE IN INNER TO_SQL: %', q;
   RETURN q;
 END
 $$ LANGUAGE plpgsql STABLE;
@@ -413,10 +449,12 @@ BEGIN
   --- * Consume a comma if present.
   --- * Consume whitespace.
   --- * Repeat until the input is empty.
+  RAISE NOTICE 'start parse_many';
   expr := regexp_replace(expr, whitespace_and_commas, '');
   WHILE expr != '' LOOP
     SELECT * FROM graphql.parse_one(expr) INTO selector, predicate, body, expr;
-    RAISE NOTICE 'After one parse Selector: %, Predicate: %, Body %, Expr %', selector, predicate, body, expr; 
+    -- RAISE NOTICE E'After one parse: Selector: %,\nPredicate: %,\nBody: %\nExpr: %', selector, predicate, body, expr; 
+    -- RAISE NOTICE 'PARSE_MANY RETURN NEXT: %', NEXT;
     RETURN NEXT;
     expr := regexp_replace(expr, whitespace_and_commas, '');
   END LOOP;
@@ -560,4 +598,4 @@ RETURNS text AS $$
          END
 $$ LANGUAGE sql STABLE;
 
-END;
+-- END;
