@@ -3,68 +3,19 @@
 #include "schema/schema.h"
 #include <stdio.h>
 
-char* handle_operation_query(const char *json_query, int fd) {
-    char* response; 
-    cJSON *json;
-    cJSON *definitions;
-    char *query_for_execution;
-    json = cJSON_Parse(json_query);
-    if (json == NULL) {
-		const char *error_ptr = cJSON_GetErrorPtr();
-		if (error_ptr != NULL) {
-			elog(LOG, "Error: %s %ld\n", error_ptr, error_ptr - json_query);
-		}
-		cJSON_Delete(json);
-		return NULL;
-	}
-
-    // access the JSON data
-	definitions = cJSON_GetObjectItemCaseSensitive(json, "definitions");
-    elog(LOG, "definitions: %p\n", definitions);
-    if (cJSON_GetArraySize(definitions) != 1) {
-        elog(LOG, "Request should consist one operation\n");
-        return NULL;
-    }
-
-    elog(LOG, "definitions size: %d", cJSON_GetArraySize(definitions));
-    for (int i = 0; i < cJSON_GetArraySize(definitions); ++i) {
-        cJSON *definition;
-        cJSON *kind;
-        cJSON *operation;
-        cJSON *selection_set;
-        cJSON *selections_json;
-        
-        definition = cJSON_GetArrayItem(definitions, i);
-        kind = cJSON_GetObjectItemCaseSensitive(definition, "kind");
-        if (kind != NULL && (cJSON_IsString(kind)) && (kind->valuestring != NULL)
-                && (strcmp(kind->valuestring, "OperationDefinition") != 0)) {
-            elog(LOG, "Wrong query type\n");
-            continue;
-        }
-
-        //operation type
-        operation = cJSON_GetObjectItemCaseSensitive(definition, "operation");
-        if (operation != NULL && (cJSON_IsString(operation)) && (operation->valuestring != NULL)
-                && (strcmp(operation->valuestring, "mutation") != 0) && (strcmp(operation->valuestring, "query") != 0)) {
-            elog(LOG, "Operation query or mutation expected\n");
-            continue;
-        }
-        struct ArgValues args;
-        struct Selections *selections = (struct Selection*)malloc(sizeof(struct Selection));
-        memset(selections, 0, sizeof(selections));
-        elog(LOG, "selection size: %d", sizeof(struct Selections));
-        selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
-        int depth = 0;
-        parse_selection_set(selections, selection_set, depth);
-        log_stack(selections);
-        response = make_sql_query(selections);
-        elog(LOG, "sql query: %s", response);
-        return "SELECT * from book;";
-handle_operation_fail:
-        elog(LOG, "handle_operation_fail\n");
-        return NULL;
-    }
-    // return response;
+char* handle_operation_query(cJSON* definition) {
+    cJSON* selection_set;
+    char* response;
+    struct Selections *selections = (struct Selection*)malloc(sizeof(struct Selection));
+    memset(selections, 0, sizeof(selections));
+    elog(LOG, "selection size: %d", sizeof(struct Selections));
+    selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");
+    int depth = 0;
+    parse_selection_set(selections, selection_set, depth);
+    log_stack(selections);
+    response = make_sql_query(selections);
+    elog(LOG, "sql query: %s", response);
+    return response;
 }
 
 void parse_selection_set(struct Selections* selections, cJSON *selection_set, int depth) {

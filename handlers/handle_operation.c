@@ -4,6 +4,7 @@
 #include "../postgres_connect/postgres_connect.h"
 #include "../io_uring/multiple_user_access.h"
 #include "../schema/schema.h"
+#include "../query_parser/query_parser.h"
 #include "utils.h"
 #include "defines.h"
 
@@ -116,6 +117,10 @@ char* handle_operation(const char *json_query, hashmap *resolvers, int fd) {
                 && (strcmp(definition_operation->valuestring, "mutation") != 0) && (strcmp(definition_operation->valuestring, "query") != 0)) {
             elog(LOG, "Operation query or mutation expected\n");
             continue;
+        }
+
+        if ((strcmp(definition_operation->valuestring, "query") == 0)) {
+            return handle_operation_query(definition);
         }
 
         definition_selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");

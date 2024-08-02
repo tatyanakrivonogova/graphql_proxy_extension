@@ -132,8 +132,7 @@ parse_input(char* buffer, size_t request_len, int* output_size, int fd, hashmap 
         elog(LOG, "parse_input(): parsed json query: %s\n", json_query);
 
         // handle operation and get response
-        response = handle_operation_query(json_query, fd);
-        // response = handle_operation(json_query, resolvers, fd);
+        response = handle_operation(json_query, resolvers, fd);
         elog(LOG, "response after handle_operation_query: %s", response);
         // copy response for sending
         if (response != NULL) {

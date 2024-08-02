@@ -1,0 +1,15 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+SELECT json_agg("sub/2") FROM Person,
+	LATERAL (
+		SELECT book.id, book.author, book.title
+		FROM book
+		WHERE book. = ''
+	) AS "sub/1",
+	LATERAL (
+		SELECT Person.id, Person.name, Person.age, "sub/1"
+		FROM Person
+		WHERE Person.id = '8' AND
+		Person.book = book.pk_book
+	) AS "sub/2";
