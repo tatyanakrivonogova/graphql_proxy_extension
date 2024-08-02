@@ -150,25 +150,27 @@ char* make_sql_query(struct Selections* selections) {
     memset(query, 0, sizeof(query));
     size_t count = selections->count;
     int max_depth_index = get_deepest(selections);
+    int prev_depth_index = max_depth_index;
     form_query_begin(query, max_depth_index, selections);
     elog(LOG, "make query begin: %s", query);
     // form_layer_query(query, selections, max_depth_index);
     //todo: selections->selections[count - 1] - main table name
-    int i = 1;
+    int itteration = 1;
     while (max_depth_index > 0) {
         elog(LOG, "got deepest");
+        prev_depth_index = max_depth_index;
         max_depth_index = get_deepest(selections);
         if (max_depth_index == count) {
             return query;
         }
-        form_layer_query(query, selections, max_depth_index, i);
-        i++;
+        form_layer_query(query, selections, max_depth_index, prev_depth_index, itteration);
+        itteration++;
     }
     elog(LOG, "query: \n%s", query);
     return query;
 }
 
-void form_layer_query(char* query, struct Selections* selections, int layer_index, int itteration) {
+void form_layer_query(char* query, struct Selections* selections, int layer_index, int prev_depth_index, int itteration) {
     strcat(query, "\n\tLATERAL (\n");
     char* table_name = (char *)malloc(sizeof(char) * NAME_LENGTH);
     // 1 - dot size
@@ -194,9 +196,37 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
     }
     add_previous_subquery(query, itteration);
     add_from(query, table_name);
+    add_where(query, selections, layer_index, prev_depth_index, itteration);
     add_final_symbols(query, itteration, depth);
     elog(LOG, "query: %s", query);
     free(tmp);
+}
+
+void add_where(char* query, struct Selections* selections, int layer_index, int prev_layer_index, int itteration) {
+    bool is_complex = false;
+    if (itteration > 1 || selections->selections[layer_index]->argName != NULL) {
+        strcat(query, "\n\t\tWHERE ");
+    } else {
+        return;
+    }
+    if (selections->selections[layer_index]->argName != NULL) {
+        char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2));
+        sprintf(tmp, "%s.%s = '%s'", selections->selections[layer_index]->name, selections->selections[layer_index]->argName,
+            selections->selections[layer_index]->argValue);
+        strcat(query, tmp);
+        free(tmp);
+        is_complex = true;
+    }
+    if (itteration > 1) {
+        if (is_complex) {
+            strcat(query, " AND\n\t\t");
+        }
+        char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2));
+        char* key = selections->selections[prev_layer_index]->name;
+        sprintf(tmp, "%s.%s = %s.pk_%s", selections->selections[layer_index]->name, key, key, key);
+        strcat(query, tmp);
+        free(tmp);
+    }
 }
 
 void add_from(char* query, char* table_name) {
