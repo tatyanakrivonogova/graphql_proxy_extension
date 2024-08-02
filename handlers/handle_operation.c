@@ -11,6 +11,8 @@
 
 #include "postgres.h"
 
+
+
 void free_arg_values(struct ArgValues *argValues) {
     if (argValues != NULL) {
         for (size_t i = 0; i < argValues->argNumber; ++i) {
@@ -129,7 +131,7 @@ char *handle_operation(const char *json_query, hashmap *resolvers, int fd, int *
         }
 
         if ((strcmp(definition_operation->valuestring, "query") == 0)) {
-            return handle_operation_query(definition);
+            return handle_operation_query(definition, server_error);
         }
 
     definition_selection_set = cJSON_GetObjectItemCaseSensitive(definition, "selectionSet");

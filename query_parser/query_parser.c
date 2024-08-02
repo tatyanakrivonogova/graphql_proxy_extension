@@ -3,9 +3,9 @@
 #include "schema/schema.h"
 #include <stdio.h>
 
-char* handle_operation_query(cJSON* definition) {
+char* handle_operation_query(cJSON* definition, int* server_error) {
     cJSON* selection_set;
-    char* response;
+    char* sql_query;
     struct Selections *selections = (struct Selection*)malloc(sizeof(struct Selection));
     memset(selections, 0, sizeof(selections));
     elog(LOG, "selection size: %d", sizeof(struct Selections));
@@ -13,8 +13,17 @@ char* handle_operation_query(cJSON* definition) {
     int depth = 0;
     parse_selection_set(selections, selection_set, depth);
     log_stack(selections);
-    response = make_sql_query(selections);
-    elog(LOG, "sql query: %s", response);
+    sql_query = make_sql_query(selections);
+    elog(LOG, "sql query: %s", sql_query);
+
+    char *response = NULL;
+
+    // execute query
+    PGresult *result;
+    exec_query(&pg_conn, sql_query, &result);
+    if (result) {
+        response = handle_query(&result, server_error);
+    }
     return response;
 }
 
@@ -29,10 +38,6 @@ void parse_selection_set(struct Selections* selections, cJSON *selection_set, in
         cJSON *selection_arguments;
 
         selection_json = cJSON_GetArrayItem(selections_json, j);
-        // struct Selection* selection;
-        // if () {
-        //     add_selection_struct(selections, selection);
-        // }
         parse_selection(selection_json, selections, depth);
     }
     log_stack(selections);
@@ -65,28 +70,23 @@ void parse_selection(cJSON *selection, struct Selections* selections, int depth)
         result->is_selection_set = false;
         elog(LOG, "selection set is null, selection name: %s, size: %d", result->name, size);
         add_selection_struct(selections, result);
-        // return 1;
     } else {
         result->is_selection_set = true;
         result->depth += 1;
         elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result->name, size);
         add_selection_struct(selections, result);
         parse_selection_set(selections, selection_set, depth + 1);
-        // return 0;
     }
-
-    // return result;
-    // add_selection(selections, name->valuestring, arg_name, arg_value, args_count, depth);
 }
 
-void add_selection_struct(Selections *selections, Selection *selection) {
+void add_selection_struct(struct Selections *selections, struct Selection *selection) {
     elog(LOG, "add selection struct");
     size_t count = selections->count;
     selections->selections[count] = selection;
     selections->count += 1;
 }
 
-void log_stack(Selections *selections) {
+void log_stack(struct Selections *selections) {
     int count = selections->count;
     elog(LOG, "\nSELECTIONS STACK, size: %d", count);
     for (int i = count - 1; i >= 0; i--) {
@@ -101,6 +101,7 @@ char* make_sql_query(struct Selections* selections) {
     memset(query, 0, sizeof(query));
     size_t count = selections->count;
     int max_depth_index = get_deepest(selections);
+    elog(LOG, "max depth: %d", max_depth_index);
     int prev_depth_index = max_depth_index;
     form_query_begin(query, max_depth_index, selections);
     elog(LOG, "make query begin: %s", query);
@@ -108,7 +109,7 @@ char* make_sql_query(struct Selections* selections) {
     //todo: selections->selections[count - 1] - main table name
     int itteration = 1;
     while (max_depth_index > 0) {
-        elog(LOG, "got deepest");
+        elog(LOG, "get deepest: %d", max_depth_index);
         prev_depth_index = max_depth_index;
         max_depth_index = get_deepest(selections);
         if (max_depth_index == count) {
@@ -122,12 +123,12 @@ char* make_sql_query(struct Selections* selections) {
 }
 
 void form_layer_query(char* query, struct Selections* selections, int layer_index, int prev_depth_index, int itteration) {
-    strcat(query, "\n\tLATERAL (\n");
+    strcat(query, " LATERAL ( ");
     char* table_name = (char *)malloc(sizeof(char) * NAME_LENGTH);
     // 1 - dot size
     char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2 + 1));
     sprintf(table_name, "%s", selections->selections[layer_index]->name);
-    strcat(query, "\t\tSELECT");
+    strcat(query, " SELECT");
     int depth = selections->selections[layer_index]->depth;
     disable_selection(selections, layer_index);
     int cur_index = layer_index + 1;
@@ -155,8 +156,9 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
 
 void add_where(char* query, struct Selections* selections, int layer_index, int prev_layer_index, int itteration) {
     bool is_complex = false;
-    if (itteration > 1 || selections->selections[layer_index]->argName != NULL) {
-        strcat(query, "\n\t\tWHERE ");
+    if (selections->selections[prev_layer_index]->is_selection_set || 
+            selections->selections[layer_index]->argName != NULL) {
+        strcat(query, " WHERE ");
     } else {
         return;
     }
@@ -168,9 +170,9 @@ void add_where(char* query, struct Selections* selections, int layer_index, int 
         free(tmp);
         is_complex = true;
     }
-    if (itteration > 1) {
+    if (selections->selections[prev_layer_index]->is_selection_set) {
         if (is_complex) {
-            strcat(query, " AND\n\t\t");
+            strcat(query, " AND ");
         }
         char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2));
         char* key = selections->selections[prev_layer_index]->name;
@@ -182,7 +184,7 @@ void add_where(char* query, struct Selections* selections, int layer_index, int 
 
 void add_from(char* query, char* table_name) {
     char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2));
-    sprintf(tmp, "\n\t\tFROM %s", table_name);
+    sprintf(tmp, " FROM %s", table_name);
     strcat(query, tmp);
 }
 
@@ -198,7 +200,7 @@ void add_previous_subquery(char* query, int itteration) {
 
 void add_final_symbols(char* query, int itteration, int depth) {
     char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 3));
-    sprintf(tmp, "\n\t) AS \"sub/%d\"", itteration);
+    sprintf(tmp, " ) AS \"sub/%d\"", itteration);
     strcat(query, tmp);
     if (depth == 1) {
         strcat(query, ";");
@@ -234,7 +236,7 @@ void form_query_begin(char* query, int max_depth_index, struct Selections* selec
     strcat(query, str);
     memset(str, 0, sizeof(str));
     // sprintf(str, " FROM %s,", selections->selections[selections->count - 1]->name);
-    sprintf(str, " FROM %s,", selections->selections[0]->name);
+    sprintf(str, " FROM %s, ", selections->selections[0]->name);
     strcat(query, str);
     free(str);
     // disable_selection(selections, 0);

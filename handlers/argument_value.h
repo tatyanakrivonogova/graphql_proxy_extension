@@ -29,11 +29,11 @@ typedef struct Selection{
     int argCount;
     int depth;
     bool is_selection_set;
-} Selection;
+};
 
 typedef struct Selections{
     size_t count;
     struct Selection *selections[MAX_SELECTIONS];
-} Selections;
+};
 
 #endif
