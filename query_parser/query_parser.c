@@ -193,11 +193,16 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
         cur_index = get_next_selection_index(selections, cur_index, depth);
     }
     add_previous_subquery(query, itteration);
-    sprintf(tmp, " FROM %s\n\t) AS \"sub/%d\"", table_name, itteration);
-    strcat(query, tmp);
-    add_final_symbol(query, depth);
+    add_from(query, table_name);
+    add_final_symbols(query, itteration, depth);
     elog(LOG, "query: %s", query);
     free(tmp);
+}
+
+void add_from(char* query, char* table_name) {
+    char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 2));
+    sprintf(tmp, "\n\t\tFROM %s", table_name);
+    strcat(query, tmp);
 }
 
 void add_previous_subquery(char* query, int itteration) {
@@ -210,7 +215,10 @@ void add_previous_subquery(char* query, int itteration) {
     free(sub);
 }
 
-void add_final_symbol(char* query, int depth) {;
+void add_final_symbols(char* query, int itteration, int depth) {
+    char* tmp = (char *)malloc(sizeof(char) * (NAME_LENGTH * 3));
+    sprintf(tmp, "\n\t) AS \"sub/%d\"", itteration);
+    strcat(query, tmp);
     if (depth == 1) {
         strcat(query, ";");
     } else {
