@@ -78,14 +78,17 @@ void parse_selection_set(struct Selections* selections, cJSON *selection_set, in
         cJSON *selection_arguments;
 
         selection_json = cJSON_GetArrayItem(selections_json, j);
-        struct Selection* selection = parse_selection(selection_json, selections, depth);
-        add_selection_struct(selections, selection);
+        // struct Selection* selection;
+        // if () {
+        //     add_selection_struct(selections, selection);
+        // }
+        parse_selection(selection_json, selections, depth);
     }
     log_stack(selections);
     return;
 }
 
-struct Selection* parse_selection(cJSON *selection, struct Selections* selections, int depth) {
+void parse_selection(cJSON *selection, struct Selections* selections, int depth) {
     struct Selection* result = (struct Selection *)malloc(sizeof(struct Selection));
     memset(result, 0, sizeof(result));
     cJSON* tmp = cJSON_GetObjectItemCaseSensitive(selection, "name");
@@ -110,14 +113,18 @@ struct Selection* parse_selection(cJSON *selection, struct Selections* selection
     if (size == 0) {
         result->is_selection_set = false;
         elog(LOG, "selection set is null, selection name: %s, size: %d", result->name, size);
+        add_selection_struct(selections, result);
+        // return 1;
     } else {
         result->is_selection_set = true;
         result->depth += 1;
         elog(LOG, "selection set is NOT null, selection name: %s, size: %d", result->name, size);
+        add_selection_struct(selections, result);
         parse_selection_set(selections, selection_set, depth + 1);
+        // return 0;
     }
 
-    return result;
+    // return result;
     // add_selection(selections, name->valuestring, arg_name, arg_value, args_count, depth);
 }
 
@@ -149,8 +156,9 @@ char* make_sql_query(struct Selections* selections) {
     //todo: selections->selections[count - 1] - main table name
     int i = 1;
     while (max_depth_index > 0) {
+        elog(LOG, "got deepest");
         max_depth_index = get_deepest(selections);
-        if (max_depth_index == 0) {
+        if (max_depth_index == count) {
             return query;
         }
         form_layer_query(query, selections, max_depth_index, i);
@@ -170,7 +178,7 @@ void form_layer_query(char* query, struct Selections* selections, int layer_inde
     int depth = selections->selections[layer_index]->depth;
     disable_selection(selections, layer_index);
     int cur_index = layer_index + 1;
-    while (cur_index >= 0) {
+    while (cur_index < selections->count) {
         if (cur_index == layer_index + 1) {
             sprintf(tmp, " %s.%s", table_name, selections->selections[cur_index]->name);
         }
@@ -214,8 +222,8 @@ int get_next_selection_index(struct Selections* selections, int cur_index, int d
     while (1) {
         cur_index += 1;
         elog(LOG, "cur_index in while: %d", cur_index);
-        if (cur_index < 0) {
-            elog(LOG, "cur_index is negative, return");
+        if (cur_index >= selections->count) {
+            elog(LOG, "cur_index is invalid, return");
             return cur_index;
         }
         struct Selection* selection = selections->selections[cur_index];
@@ -236,13 +244,11 @@ void form_query_begin(char* query, int max_depth_index, struct Selections* selec
     sprintf(str, "SELECT json_agg(\"sub/%d\")", max_depth);
     strcat(query, str);
     memset(str, 0, sizeof(str));
-    sprintf(str, " FROM %s,", selections->selections[selections->count - 1]->name);
+    // sprintf(str, " FROM %s,", selections->selections[selections->count - 1]->name);
+    sprintf(str, " FROM %s,", selections->selections[0]->name);
     strcat(query, str);
     free(str);
-}
-
-int find_less_deepest(struct Selections* selections, int prev_deep) {
-
+    // disable_selection(selections, 0);
 }
 
 void disable_selection(struct Selections* selections, int index) {
